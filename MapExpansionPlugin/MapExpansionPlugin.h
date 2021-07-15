@@ -11,6 +11,8 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin/*, public Ba
 {
 	virtual void onLoad();
 	virtual void onUnload();
-	void OnPhysicsTick(std::string eventName);
+	void OnPhysicsTick(CarWrapper cw, void* params, std::string eventName);
+
+	bool inputBlocked;
 };
 

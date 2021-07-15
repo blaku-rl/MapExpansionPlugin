@@ -6,29 +6,57 @@
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
 
 
-BAKKESMOD_PLUGIN(MapExpansionPlugin, "write a plugin description here", plugin_version, PLUGINTYPE_FREEPLAY)
+BAKKESMOD_PLUGIN(MapExpansionPlugin, "Plugin for expanding map creators capabilities", plugin_version, PLUGINTYPE_FREEPLAY)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
 void MapExpansionPlugin::onLoad()
 {
 	_globalCvarManager = cvarManager;
-	gameWrapper->HookEvent("Function TAGame.Car_TA.SetVehicleInput", bind(&MapExpansionPlugin::OnPhysicsTick, this, std::placeholders::_1));
+	gameWrapper->HookEventWithCaller<CarWrapper>("Function TAGame.Car_TA.SetVehicleInput", 
+		std::bind(&MapExpansionPlugin::OnPhysicsTick, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+	inputBlocked = false;
 }
 
 void MapExpansionPlugin::onUnload()
 {
 }
 
-void MapExpansionPlugin::OnPhysicsTick(std::string eventName)
+void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 
 	auto allVars = sequence.GetAllSequenceVariables(false);
-	auto command = allVars.find("bmcommand");
-	if (command == allVars.end() || !command->second.IsString() || command->second.GetString() == "") return;
 
-	cvarManager->executeCommand(command->second.GetString());
-	command->second.SetString("");
+	//Check for bm console command
+	auto command = allVars.find("bmcommand");
+	if (command != allVars.end() && command->second.IsString() && command->second.GetString() != "") {
+		cvarManager->executeCommand(command->second.GetString());
+		command->second.SetString("");
+	}
+
+	//Check for bm logging
+	auto bmlog = allVars.find("bmlog");
+	if (bmlog != allVars.end() && bmlog->second.IsString() && bmlog->second.GetString() != "") {
+		cvarManager->log(bmlog->second.GetString());
+		bmlog->second.SetString("");
+	}
+
+	//Check for custom commands
+	auto custCommand = allVars.find("customcommand");
+	if (custCommand != allVars.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
+		if (custCommand->second.GetString() == "input stop") {
+			inputBlocked = true;
+		}
+		else if (custCommand->second.GetString() == "input begin") {
+			inputBlocked = false;
+		}
+		custCommand->second.SetString("");
+	}
+
+	if (inputBlocked) {
+		ControllerInput* ci = (ControllerInput*)params;
+		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
+	}
 }
