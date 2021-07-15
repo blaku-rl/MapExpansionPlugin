@@ -12,9 +12,14 @@ std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
 void MapExpansionPlugin::onLoad()
 {
+	using namespace std::placeholders;
+
 	_globalCvarManager = cvarManager;
 	gameWrapper->HookEventWithCaller<CarWrapper>("Function TAGame.Car_TA.SetVehicleInput", 
-		std::bind(&MapExpansionPlugin::OnPhysicsTick, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+		std::bind(&MapExpansionPlugin::OnPhysicsTick, this, _1, _2, _3));
+
+	Netcode = std::make_shared<NetcodeManager>(cvarManager, gameWrapper, exports,
+		std::bind(&MapExpansionPlugin::OnMessageRecieved, this, _1, _2));
 	inputBlocked = false;
 }
 
@@ -59,4 +64,8 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 		ControllerInput* ci = (ControllerInput*)params;
 		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
 	}
+}
+
+void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
+{
 }
