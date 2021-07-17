@@ -18,5 +18,6 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin/*, public Ba
 
 	std::shared_ptr<NetcodeManager> Netcode;
 	bool inputBlocked;
+	std::string loadedMap = "";
 };
 

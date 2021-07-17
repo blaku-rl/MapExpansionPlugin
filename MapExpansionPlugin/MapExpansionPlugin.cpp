@@ -48,6 +48,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	//Check for bm console command
 	auto command = allVars.find("bmcommand");
 	if (command != allVars.end() && command->second.IsString() && command->second.GetString() != "") {
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running: " + command->second.GetString());
 		cvarManager->executeCommand(command->second.GetString());
 		command->second.SetString("");
 	}
@@ -55,7 +56,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	//Check for bm logging
 	auto bmlog = allVars.find("bmlog");
 	if (bmlog != allVars.end() && bmlog->second.IsString() && bmlog->second.GetString() != "") {
-		cvarManager->log(bmlog->second.GetString());
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " says: " + bmlog->second.GetString());
 		bmlog->second.SetString("");
 	}
 
@@ -64,9 +65,11 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	if (custCommand != allVars.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
 		auto custCommandValue = custCommand->second.GetString();
 		if (custCommandValue == "input stop") {
+			cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is blocking input");
 			inputBlocked = true;
 		}
 		else if (custCommandValue == "input begin") {
+			cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is allowing input");
 			inputBlocked = false;
 		}
 		custCommand->second.SetString("");
