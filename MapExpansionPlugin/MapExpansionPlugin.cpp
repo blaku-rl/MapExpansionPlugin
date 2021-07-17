@@ -13,14 +13,24 @@ std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 void MapExpansionPlugin::onLoad()
 {
 	using namespace std::placeholders;
-
 	_globalCvarManager = cvarManager;
+
+	//Hooks
 	gameWrapper->HookEventWithCaller<CarWrapper>("Function TAGame.Car_TA.SetVehicleInput", 
 		std::bind(&MapExpansionPlugin::OnPhysicsTick, this, _1, _2, _3));
+	gameWrapper->HookEventPost("Function ProjectX.EngineShare_X.EventPostLoadMap", [this](std::string eventName) {
+		MapPluginVarCheck();
+		});
 
+	//Ensure netcode is installed
 	Netcode = std::make_shared<NetcodeManager>(cvarManager, gameWrapper, exports,
 		std::bind(&MapExpansionPlugin::OnMessageRecieved, this, _1, _2));
+
+	//Initialize
 	inputBlocked = false;
+
+	//Check for var incase plugin is loaded while in a map
+	MapPluginVarCheck();
 }
 
 void MapExpansionPlugin::onUnload()
@@ -29,6 +39,7 @@ void MapExpansionPlugin::onUnload()
 
 void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
+	if (!gameWrapper->GetGameEventAsServer()) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 
@@ -51,10 +62,11 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	//Check for custom commands
 	auto custCommand = allVars.find("customcommand");
 	if (custCommand != allVars.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
-		if (custCommand->second.GetString() == "input stop") {
+		auto custCommandValue = custCommand->second.GetString();
+		if (custCommandValue == "input stop") {
 			inputBlocked = true;
 		}
-		else if (custCommand->second.GetString() == "input begin") {
+		else if (custCommandValue == "input begin") {
 			inputBlocked = false;
 		}
 		custCommand->second.SetString("");
@@ -64,6 +76,18 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 		ControllerInput* ci = (ControllerInput*)params;
 		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
 	}
+}
+
+void MapExpansionPlugin::MapPluginVarCheck()
+{
+	if (!gameWrapper->GetGameEventAsServer()) { return; }
+	auto sequence = gameWrapper->GetMainSequence();
+	if (sequence.memory_address == NULL) { return; }
+
+	auto allVars = sequence.GetAllSequenceVariables(false);
+	auto pluginCheck = allVars.find("mappluginenabled");
+	if (pluginCheck == allVars.end() || !pluginCheck->second.IsBool()) { return; }
+	pluginCheck->second.SetBool(true);
 }
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)

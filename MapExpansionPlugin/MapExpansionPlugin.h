@@ -13,6 +13,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin/*, public Ba
 	virtual void onLoad();
 	virtual void onUnload();
 	void OnPhysicsTick(CarWrapper cw, void* params, std::string eventName);
+	void MapPluginVarCheck();
 	void OnMessageRecieved(const std::string& Message, PriWrapper Sender);
 
 	std::shared_ptr<NetcodeManager> Netcode;
