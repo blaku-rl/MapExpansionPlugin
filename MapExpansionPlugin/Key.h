@@ -31,7 +31,7 @@ struct KeyPressParams {
 	unsigned int ReturnValue;
 };
 
-std::vector<std::string> keyNames = {
+__declspec(selectany) std::vector<std::string> keyNames = {
 	"F1",
 	"F2",
 	"F3",
