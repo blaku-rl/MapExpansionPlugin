@@ -4,6 +4,7 @@
 #include "bakkesmod/plugin/pluginwindow.h"
 #include "NetcodeManager/NetcodeManager.h"
 #include "Key.h"
+#include <functional>
 
 #include "version.h"
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
@@ -38,6 +39,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin/*, public Ba
 	//Key Data
 	std::vector<std::shared_ptr<MapBind>> mapBinds;
 	std::map<int, bool> keysPressed = {};
+	std::map<std::string, bool> validKeys = {};
 
 	bool inputBlocked;
 	std::string loadedMap = "";

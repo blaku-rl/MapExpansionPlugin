@@ -32,12 +32,11 @@ struct KeyPressParams {
 };
 
 struct KeyInfo {
-	std::string keyName;
+	int keyIndex;
 	bool isPressed;
 };
 
 std::vector<std::string> keyNames = {
-	"",
 	"F1",
 	"F2",
 	"F3",

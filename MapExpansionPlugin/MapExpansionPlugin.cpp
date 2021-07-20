@@ -46,6 +46,7 @@ void MapExpansionPlugin::SetUpKeysMap()
 	for (int i = 1; i < keyNames.size(); i++) {
 		int fnameIndex = gameWrapper->GetFNameIndexByString(keyNames[i]);
 		keysPressed.insert(std::pair<int, bool>(fnameIndex, false ));
+		validKeys.insert(std::pair<std::string, bool>(keyNames[i], false));
 	}
 }
 
@@ -60,7 +61,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	//Check for bm console command
 	auto command = allVars.find("bmcommand");
 	if (command != allVars.end() && command->second.IsString() && command->second.GetString() != "") {
-		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running: " + command->second.GetString());
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running '" + command->second.GetString() + "'");
 		cvarManager->executeCommand(command->second.GetString());
 		command->second.SetString("");
 	}
@@ -68,7 +69,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	//Check for bm logging
 	auto bmlog = allVars.find("bmlog");
 	if (bmlog != allVars.end() && bmlog->second.IsString() && bmlog->second.GetString() != "") {
-		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " says: " + bmlog->second.GetString());
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " says '" + bmlog->second.GetString() + "'");
 		bmlog->second.SetString("");
 	}
 
@@ -76,7 +77,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	auto custCommand = allVars.find("customcommand");
 	if (custCommand != allVars.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
 		auto custCommandValue = custCommand->second.GetString();
-		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running command " + custCommandValue);
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running command '" + custCommandValue + "'");
 
 		std::stringstream commandStream(custCommandValue);
 		std::string commandName;
@@ -89,7 +90,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 		}
 
 		if (custCommands.find(commandName) == custCommands.end()) {
-			cvarManager->log("Command " + commandName + " was not found.");
+			cvarManager->log("Command '" + commandName + "' was not found.");
 		}
 		else {
 			custCommands[commandName](commandArgs);
@@ -127,7 +128,7 @@ void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
 {
 	if (params.size() != 2) {
 		cvarManager->log(
-			L"keylisten command expects 2 parameters. First is a comma separated list of keys that are required."
+			L"keylisten command expects 2 parameters separated by spaces. First is a comma separated list of keys that are required."
 			"The second is the name of the remote event that will be ran once the required keys are pressed");
 		return;
 	}
@@ -136,6 +137,10 @@ void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
 	std::stringstream keysStream(params[0]);
 	std::string key;
 	while (std::getline(keysStream, key, ',')) {
+		if (validKeys.find(key) == validKeys.end()) {
+			cvarManager->log("Key '" + key + "' is not a supported key. View documentation for supported key names. keylisten command will not be added");
+			return;
+		}
 		auto keyIndex = gameWrapper->GetFNameIndexByString(key);
 		curBind.keyListFnameIndex.push_back(keyIndex);
 	}
@@ -143,7 +148,7 @@ void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
 	curBind.allKeysPressed = false;
 
 	mapBinds.push_back(std::make_shared<MapBind>(curBind));
-	cvarManager->log("Making bind with keys: " + params[0] + " and remote event: " + params[1]);
+	cvarManager->log("Making bind with keys '" + params[0] + "' and remote event '" + params[1] + "'");
 }
 
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
@@ -169,7 +174,7 @@ void MapExpansionPlugin::CheckForSatisfiedBinds()
 			auto sequence = gameWrapper->GetMainSequence();
 			if (sequence.memory_address == NULL) return;
 
-			cvarManager->log("Activating remote event " + binding->remoteEvent);
+			cvarManager->log("Activating remote event '" + binding->remoteEvent + "'");
 			sequence.ActivateRemoteEvents(binding->remoteEvent);
 		}
 		else if (!keysPressedForBinding && binding->allKeysPressed) {
@@ -198,11 +203,12 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	auto pluginCheck = allVars.find("mappluginenabled");
 	if (pluginCheck == allVars.end() || !pluginCheck->second.IsBool()) { return; }
 	pluginCheck->second.SetBool(true);
+	cvarManager->log("Setting 'mappluginenabled' var to true");
 }
 
 void MapExpansionPlugin::MapUnload(std::string eventName)
 {
-	mapBinds = {};
+	mapBinds.clear();
 }
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
