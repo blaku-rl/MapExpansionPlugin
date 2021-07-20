@@ -17,10 +17,11 @@ void MapExpansionPlugin::onLoad()
 
 	custCommands.insert({ "input", std::bind(&MapExpansionPlugin::InputBlockCommand, this, _1) });
 	custCommands.insert({ "keylisten", std::bind(&MapExpansionPlugin::KeyListenCommand, this, _1) });
-	mapBinds = {};
-	SetUpKeysMap();
+
+	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 
 	//Hooks
+	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, std::placeholders::_1));
 	gameWrapper->HookEventWithCaller<CarWrapper>("Function TAGame.Car_TA.SetVehicleInput", std::bind(&MapExpansionPlugin::OnPhysicsTick, this, _1, _2, _3));
 	gameWrapper->HookEventWithCaller<ActorWrapper>("Function TAGame.GameViewportClient_TA.HandleKeyPress", std::bind(&MapExpansionPlugin::OnKeyPressed, this, _1, _2, _3));
 	gameWrapper->HookEventPost("Function ProjectX.EngineShare_X.EventPostLoadMap", std::bind(&MapExpansionPlugin::MapPluginVarCheck, this, _1));
@@ -29,16 +30,14 @@ void MapExpansionPlugin::onLoad()
 	//Ensure netcode is installed
 	Netcode = std::make_shared<NetcodeManager>(cvarManager, gameWrapper, exports,
 		std::bind(&MapExpansionPlugin::OnMessageRecieved, this, _1, _2));
-
-	//Initialize
-	inputBlocked = false;
-
-	//Check for var incase plugin is loaded while in a map
-	MapPluginVarCheck("");
 }
 
 void MapExpansionPlugin::onUnload()
 {
+	//No crashes on updates...maybe
+	if (setupThread.joinable()) {
+		setupThread.join();
+	}
 }
 
 void MapExpansionPlugin::SetUpKeysMap()
@@ -48,11 +47,24 @@ void MapExpansionPlugin::SetUpKeysMap()
 		keysPressed.insert(std::pair<int, bool>(fnameIndex, false ));
 		validKeys.insert(std::pair<std::string, bool>(keyNames[i], false));
 	}
+	isSetupComplete = true;
+}
+
+void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
+{
+	if (isSetupComplete && setupThread.joinable()) {
+		setupThread.join();
+		gameWrapper->UnhookEventPost("Function Engine.GameViewportClient.Tick");
+		cvarManager->log("Map Expansion setup complete");
+
+		//Check for var incase plugin is loaded while in a map
+		MapPluginVarCheck("");
+	}
 }
 
 void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
-	if (!gameWrapper->GetGameEventAsServer()) { return; }
+	if (!gameWrapper->GetGameEventAsServer() || !isSetupComplete) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 
@@ -77,9 +89,24 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	auto custCommand = allVars.find("customcommand");
 	if (custCommand != allVars.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
 		auto custCommandValue = custCommand->second.GetString();
-		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running command '" + custCommandValue + "'");
+		ParseCommands(custCommandValue);
+		custCommand->second.SetString("");
+	}
 
-		std::stringstream commandStream(custCommandValue);
+	if (inputBlocked) {
+		ControllerInput* ci = (ControllerInput*)params;
+		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
+	}
+}
+
+void MapExpansionPlugin::ParseCommands(std::string commands)
+{
+	std::stringstream commandsStream(commands);
+	std::string commandValue;
+	while (std::getline(commandsStream, commandValue, ';')) {
+		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running command '" + commandValue + "'");
+
+		std::stringstream commandStream(commandValue);
 		std::string commandName;
 		std::getline(commandStream, commandName, ' ');
 
@@ -95,12 +122,6 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 		else {
 			custCommands[commandName](commandArgs);
 		}
-		custCommand->second.SetString("");
-	}
-
-	if (inputBlocked) {
-		ControllerInput* ci = (ControllerInput*)params;
-		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
 	}
 }
 
@@ -141,6 +162,7 @@ void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
 			cvarManager->log("Key '" + key + "' is not a supported key. View documentation for supported key names. keylisten command will not be added");
 			return;
 		}
+		//Might cause a little lag until new update with cached values
 		auto keyIndex = gameWrapper->GetFNameIndexByString(key);
 		curBind.keyListFnameIndex.push_back(keyIndex);
 	}
@@ -205,6 +227,8 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	pluginCheck->second.SetBool(true);
 	cvarManager->log("Setting 'mappluginenabled' var to true");
 }
+
+
 
 void MapExpansionPlugin::MapUnload(std::string eventName)
 {
