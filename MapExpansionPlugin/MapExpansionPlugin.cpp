@@ -232,6 +232,7 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 
 void MapExpansionPlugin::MapUnload(std::string eventName)
 {
+	inputBlocked = false;
 	mapBinds.clear();
 }
 
