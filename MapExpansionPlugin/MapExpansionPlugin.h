@@ -23,6 +23,8 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	void ParseCommands(std::string commands);
 	void InputBlockCommand(std::vector<std::string> params);
 	void KeyListenCommand(std::vector<std::string> params);
+	void SaveDataCommand(std::vector<std::string> params);
+	void LoadDataCommand(std::vector<std::string> params);
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);
@@ -32,8 +34,9 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	//Management
 	void MapPluginVarCheck(std::string eventName);
 	void MapUnload(std::string eventName);
+	std::filesystem::path expansionFolder = gameWrapper->GetDataFolder() / "expansion";
 
-	//Required
+	//Netcode Requirement
 	void OnMessageRecieved(const std::string& Message, PriWrapper Sender);
 	std::shared_ptr<NetcodeManager> Netcode;
 
@@ -43,7 +46,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	//Key Press Data
 	std::vector<std::shared_ptr<MapBind>> mapBinds = {};
 	std::map<int, bool> keysPressed = {};
-	std::map<std::string, bool> validKeys = {};
+	std::map<std::string, int> keyNameToIndex = {};
 
 	//Setup Thread Stuff
 	std::thread setupThread;
@@ -51,6 +54,10 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 
 	//Command vars
 	bool inputBlocked = false;
+
+	std::string nameTag = "KismetVar:";
+	std::string typeTag = "Type:";
+	std::string valueTag = "Value:";
 
 	//Settings Window
 	virtual void RenderSettings() override;
