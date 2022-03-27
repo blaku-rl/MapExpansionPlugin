@@ -8,6 +8,9 @@ This plugin is aimed at adding features for map makers by utilizing the power of
 - Ability to save/load kismet data to and from a file for cross load data storage
 - Automatically installs Netcode Manager Plugin
 
+## How It Works
+This plugin funtions by reading the contents of specifically named string kismet variables. Those variables are: `bmcommand bmlog mepcommand`. Each one serves a different purpose as described below. To make use of them, set the value the string that you'd like to use. For example to use the ballontop command from bakkes mod, set the `bmcommand` string to: `ballontop`. Each physics tick, the plugin will read the values of each of the specified named kismet strings and will try to run their commands. After it has processed the command, the plugin will set the value of the string to an empty string. 
+
 ## Bakkes Mod Console Commands
 To run console commands, make a string var called `bmcommand` and set the value to the command that you would like to run
 You can find the available console commands that can be run [here](https://bakkesmod.fandom.com/wiki/Category:Console_commands)
@@ -26,5 +29,5 @@ To run custom commands, make a string var called `mepcommand` and set the value 
 - `input stop` prevents the users inputs from effecting the car
 - `input begin` allows users inputs to effect the car
 - `keylisten {Key List} RemoteEventName` registers a specified remote event to be triggered when the keys provided in the key list are pressed. `{Key List}` is expected to be a comma separated list of UE3 recognized keys with no spaces. You can find the list [here](https://docs.unrealengine.com/udk/Three/KeyBinds.html)
-- `savedata {Kismet Var List} FileName` saves the contents of the kismet vars in the kismet var list to the specified filename. The list is expected to be a comma separated list of kismet vars that are defined on the main sequence. Supported var types are: Bool, Float, Int, String, & Vector. The names cannot have a space in them. The FileName is the name of the file that you are saving too without a file extension. Make this unique to your map to not conflict with others. Once the data has been saved to a file, a remote event named `MEPDataSaved` will be triggered.
-- `loaddata FileName` loads in data from a specified FileName. FileName is the name of file that your map has saved too without a file extension. It will take the saved kismet vars inside the file and set the value of them in the map. Once all variables are set, a remote event named `MEPDataLoaded` will be triggered.
+- `savedata {Kismet Var List} FileName` saves the contents of the kismet vars in the kismet var list to the specified filename. The list is expected to be a comma separated list of named kismet variables that are defined on the main sequence. Supported variable types are: Bool, Float, Int, String, & Vector. The names cannot have a space in them. The FileName is the name of the file that you are saving too without a file extension. Make this unique to your map to not conflict with others. Once the data has been saved to a file, a remote event named `MEPDataSaved` will be triggered.
+- `loaddata FileName` loads in data from a specified FileName. FileName is the name of file that your map has saved too without a file extension. It will take the saved named kismet variabled inside the file and set the value of them in the map. Once all variables are set, a remote event named `MEPDataLoaded` will be triggered.
