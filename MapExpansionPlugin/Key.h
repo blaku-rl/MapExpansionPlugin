@@ -31,7 +31,7 @@ struct KeyPressParams {
 	unsigned int ReturnValue;
 };
 
-__declspec(selectany) std::vector<std::string> keyNames = {
+const std::vector<std::string> keyNames = {
 	"F1",
 	"F2",
 	"F3",
@@ -75,16 +75,16 @@ __declspec(selectany) std::vector<std::string> keyNames = {
 	"Tilde",
 	"ScrollLock",
 	"Pause",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"eight",
-	"nine",
-	"zero",
+	"One",
+	"Two",
+	"Three",
+	"Four",
+	"Five",
+	"Six",
+	"Seven",
+	"Eight",
+	"Nine",
+	"Zero",
 	"Underscore",
 	"Equals",
 	"Backslash",

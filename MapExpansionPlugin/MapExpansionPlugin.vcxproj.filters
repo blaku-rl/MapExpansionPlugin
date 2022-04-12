@@ -63,9 +63,6 @@
     <ClCompile Include="imgui\imguivariouscontrols.cpp">
       <Filter>imgui\implementation</Filter>
     </ClCompile>
-    <ClCompile Include="MapExpansionPluginGUI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="fmt\src\format.cc">
       <Filter>Source Files</Filter>
     </ClCompile>

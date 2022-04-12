@@ -16,10 +16,11 @@ void MapExpansionPlugin::onLoad()
 	using namespace std::placeholders;
 	_globalCvarManager = cvarManager;
 
-	custCommands.insert({ "input", std::bind(&MapExpansionPlugin::InputBlockCommand, this, _1) });
-	custCommands.insert({ "keylisten", std::bind(&MapExpansionPlugin::KeyListenCommand, this, _1) });
-	custCommands.insert({ "savedata", std::bind(&MapExpansionPlugin::SaveDataCommand, this, _1) });
-	custCommands.insert({ "loaddata", std::bind(&MapExpansionPlugin::LoadDataCommand, this, _1) });
+	custCommands["input"] = std::bind(&MapExpansionPlugin::InputBlockCommand, this, _1);
+	custCommands["keylisten"] = std::bind(&MapExpansionPlugin::KeyListenCommand, this, _1);
+	custCommands["savedata"] = std::bind(&MapExpansionPlugin::SaveDataCommand, this, _1);
+	custCommands["loaddata"] = std::bind(&MapExpansionPlugin::LoadDataCommand, this, _1);
+	custCommands["remoteevent"] = std::bind(&MapExpansionPlugin::RemoteEventCommand, this, _1);
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	if (!std::filesystem::exists(expansionFolder))
@@ -39,7 +40,6 @@ void MapExpansionPlugin::onLoad()
 
 void MapExpansionPlugin::onUnload()
 {
-	//No crashes on updates...maybe
 	if (setupThread.joinable()) {
 		setupThread.join();
 	}
@@ -49,8 +49,8 @@ void MapExpansionPlugin::SetUpKeysMap()
 {
 	for (auto& keyName : keyNames) {
 		int fnameIndex = gameWrapper->GetFNameIndexByString(keyName);
-		keysPressed.insert(std::pair<int, bool>(fnameIndex, false));
-		keyNameToIndex.insert(std::pair<std::string, int>(keyName, fnameIndex));
+		keysPressed[fnameIndex] = false;
+		keyNameToIndex[keyName] = fnameIndex;
 	}
 	isSetupComplete = true;
 }
@@ -69,6 +69,7 @@ void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
 
 void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
+	if (!isInMap) return;
 	if (!gameWrapper->GetGameEventAsServer() || !isSetupComplete) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
@@ -104,7 +105,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 	}
 }
 
-void MapExpansionPlugin::ParseCommands(std::string commands)
+void MapExpansionPlugin::ParseCommands(const std::string& commands)
 {
 	std::stringstream commandsStream(commands);
 	std::string commandValue;
@@ -130,7 +131,7 @@ void MapExpansionPlugin::ParseCommands(std::string commands)
 	}
 }
 
-void MapExpansionPlugin::InputBlockCommand(std::vector<std::string> params)
+void MapExpansionPlugin::InputBlockCommand(const std::vector<std::string>& params)
 {
 	if (params.size() != 1) {
 		cvarManager->log("Input command expects 1 parameter. Either block or allow");
@@ -150,7 +151,7 @@ void MapExpansionPlugin::InputBlockCommand(std::vector<std::string> params)
 	}
 }
 
-void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
+void MapExpansionPlugin::KeyListenCommand(const std::vector<std::string>& params)
 {
 	if (params.size() != 2) {
 		cvarManager->log(
@@ -173,11 +174,11 @@ void MapExpansionPlugin::KeyListenCommand(std::vector<std::string> params)
 	curBind.remoteEvent = params[1];
 	curBind.allKeysPressed = false;
 
-	mapBinds.push_back(std::make_shared<MapBind>(curBind));
+	mapBinds.push_back(curBind);
 	cvarManager->log("Making bind with keys '" + params[0] + "' and remote event '" + params[1] + "'");
 }
 
-void MapExpansionPlugin::SaveDataCommand(std::vector<std::string> params)
+void MapExpansionPlugin::SaveDataCommand(const std::vector<std::string>& params)
 {
 	if (params.size() != 2) {
 		cvarManager->log(
@@ -239,7 +240,7 @@ void MapExpansionPlugin::SaveDataCommand(std::vector<std::string> params)
 	sequence.ActivateRemoteEvents("MEPDataSaved");
 }
 
-void MapExpansionPlugin::LoadDataCommand(std::vector<std::string> params)
+void MapExpansionPlugin::LoadDataCommand(const std::vector<std::string>& params)
 {
 	if (params.size() != 1) {
 		cvarManager->log("loaddata command expects 1 parameter. It should be the name of the file that you have saved to without a fileextension.");
@@ -362,14 +363,26 @@ void MapExpansionPlugin::LoadDataCommand(std::vector<std::string> params)
 	sequence.ActivateRemoteEvents("MEPDataLoaded");
 }
 
+void MapExpansionPlugin::RemoteEventCommand(const std::vector<std::string>& params)
+{
+	if (params.size() != 1) {
+		cvarManager->log("The remote event command expects 1 parameter and that's the name of the remote event to be activated");
+		return;
+	}
+
+	auto sequence = gameWrapper->GetMainSequence();
+	if (sequence.memory_address == NULL) return;
+	cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is activating remote event " + params[0]);
+	sequence.ActivateRemoteEvents(params[0]);
+}
+
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
 {
 	KeyPressParams* keyPressData = (KeyPressParams*)params;
 	if (keysPressed.find(keyPressData->Key.Index) != keysPressed.end()) {
-		keysPressed[keyPressData->Key.Index] = keyPressData->EventType != 1;
+		keysPressed[keyPressData->Key.Index] = keyPressData->EventType != EInputEvent::Released;
 	}
 	else {
-		cvarManager->log("Key with Index " + std::to_string(keyPressData->Key.Index) + " not found");
 		return;
 	}
 
@@ -379,22 +392,22 @@ void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string
 void MapExpansionPlugin::CheckForSatisfiedBinds()
 {
 	for (auto& binding : mapBinds) {
-		bool keysPressedForBinding = CheckForAllKeysPressed(binding->keyListFnameIndex);
-		if (keysPressedForBinding && !binding->allKeysPressed) {
-			binding->allKeysPressed = true;
+		bool keysPressedForBinding = CheckForAllKeysPressed(binding.keyListFnameIndex);
+		if (keysPressedForBinding && !binding.allKeysPressed) {
+			binding.allKeysPressed = true;
 			auto sequence = gameWrapper->GetMainSequence();
 			if (sequence.memory_address == NULL) return;
 
-			cvarManager->log("Activating remote event '" + binding->remoteEvent + "'");
-			sequence.ActivateRemoteEvents(binding->remoteEvent);
+			cvarManager->log("Activating remote event '" + binding.remoteEvent + "'");
+			sequence.ActivateRemoteEvents(binding.remoteEvent);
 		}
-		else if (!keysPressedForBinding && binding->allKeysPressed) {
-			binding->allKeysPressed = false;
+		else if (!keysPressedForBinding && binding.allKeysPressed) {
+			binding.allKeysPressed = false;
 		}
 	}
 }
 
-bool MapExpansionPlugin::CheckForAllKeysPressed(std::vector<int>& keys)
+bool MapExpansionPlugin::CheckForAllKeysPressed(const std::vector<int>& keys)
 {
 	if (keys.size() == 0) { return false; }
 	for (auto& fnameIndex : keys) {
@@ -406,19 +419,45 @@ bool MapExpansionPlugin::CheckForAllKeysPressed(std::vector<int>& keys)
 
 void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 {
+	if (isInMap) return;
 	if (!gameWrapper->GetGameEventAsServer()) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) { return; }
 	auto allVars = sequence.GetAllSequenceVariables(false);
 	sequence.ActivateRemoteEvents("MEPLoaded");
+	cvarManager->log("Map Expansion Plugin Loaded");
+	isInMap = true;
 }
 
 void MapExpansionPlugin::MapUnload(std::string eventName)
 {
 	inputBlocked = false;
+	isInMap = false;
 	mapBinds.clear();
 }
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
 {
+}
+
+void MapExpansionPlugin::RenderSettings()
+{
+	if (!isSetupComplete) {
+		ImGui::TextUnformatted("Map Expansion Plugin is still loading");
+	}
+	else {
+		ImGui::TextUnformatted("The Map Expansion Plugin is designed for map makers to leverage bakkesmod with their maps");
+		ImGui::TextUnformatted("Usage Details can be found here: https://github.com/blaku-rl/MapExpansionPlugin");
+	}
+}
+
+std::string MapExpansionPlugin::GetPluginName()
+{
+	return "Map Expansion Plugin";
+}
+
+// Don't call this yourself, BM will call this function with a pointer to the current ImGui context
+void MapExpansionPlugin::SetImGuiContext(uintptr_t ctx)
+{
+	ImGui::SetCurrentContext(reinterpret_cast<ImGuiContext*>(ctx));
 }
