@@ -28,6 +28,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	void SaveDataCommand(const std::vector<std::string>& params);
 	void LoadDataCommand(const std::vector<std::string>& params);
 	void RemoteEventCommand(const std::vector<std::string>& params);
+	void ChangeScoreCommand(const std::vector<std::string>& params);
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);
@@ -37,6 +38,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	//Management
 	void MapPluginVarCheck(std::string eventName);
 	void MapUnload(std::string eventName);
+	std::vector<std::string> SplitStringByChar(const std::string& str, const char& sep);
 	std::filesystem::path expansionFolder = gameWrapper->GetDataFolder() / "expansion";
 
 	//Netcode Requirement

@@ -6,6 +6,7 @@
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 BAKKESMOD_PLUGIN(MapExpansionPlugin, "Plugin for expanding map creators capabilities", plugin_version, PLUGINTYPE_FREEPLAY)
 
@@ -21,6 +22,7 @@ void MapExpansionPlugin::onLoad()
 	custCommands["savedata"] = std::bind(&MapExpansionPlugin::SaveDataCommand, this, _1);
 	custCommands["loaddata"] = std::bind(&MapExpansionPlugin::LoadDataCommand, this, _1);
 	custCommands["remoteevent"] = std::bind(&MapExpansionPlugin::RemoteEventCommand, this, _1);
+	custCommands["changescore"] = std::bind(&MapExpansionPlugin::ChangeScoreCommand, this, _1);
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	if (!std::filesystem::exists(expansionFolder))
@@ -101,32 +103,24 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 
 	if (inputBlocked) {
 		ControllerInput* ci = (ControllerInput*)params;
-		*ci = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0};
+		*ci = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0 };
 	}
 }
 
 void MapExpansionPlugin::ParseCommands(const std::string& commands)
 {
-	std::stringstream commandsStream(commands);
-	std::string commandValue;
-	while (std::getline(commandsStream, commandValue, ';')) {
-		cvarManager->log("Map " + gameWrapper->GetCurrentMap() + " is running command '" + commandValue + "'");
-
-		std::stringstream commandStream(commandValue);
-		std::string commandName;
-		std::getline(commandStream, commandName, ' ');
-
-		std::vector<std::string> commandArgs;
-		std::string segment;
-		while (std::getline(commandStream, segment, ' ')) {
-			commandArgs.push_back(segment);
-		}
+	auto commandList = SplitStringByChar(commands, ';');
+	for (auto& command : commandList) {
+		auto splitCommand = SplitStringByChar(command, ' ');
+		if (splitCommand.size() == 0) continue;
+		std::string commandName = splitCommand[0];
+		splitCommand.erase(splitCommand.begin());
 
 		if (custCommands.find(commandName) == custCommands.end()) {
 			cvarManager->log("Command '" + commandName + "' was not found.");
 		}
 		else {
-			custCommands[commandName](commandArgs);
+			custCommands[commandName](splitCommand);
 		}
 	}
 }
@@ -161,16 +155,15 @@ void MapExpansionPlugin::KeyListenCommand(const std::vector<std::string>& params
 	}
 
 	MapBind curBind;
-	std::stringstream keysStream(params[0]);
-	std::string key;
-	while (std::getline(keysStream, key, ',')) {
+	auto keyList = SplitStringByChar(params[0], ',');
+	for (auto& key : keyList) {
 		if (keyNameToIndex.find(key) == keyNameToIndex.end()) {
 			cvarManager->log("Key '" + key + "' is not a supported key. View documentation for supported key names. keylisten command will not be added");
 			return;
 		}
-
 		curBind.keyListFnameIndex.push_back(keyNameToIndex[key]);
 	}
+
 	curBind.remoteEvent = params[1];
 	curBind.allKeysPressed = false;
 
@@ -184,22 +177,23 @@ void MapExpansionPlugin::SaveDataCommand(const std::vector<std::string>& params)
 		cvarManager->log(
 			L"savedata command expects 2 parameters. The first is a comma separated list(without spaces) of kismet variables to save. "
 			"Currently only bools, floats, ints, strings, and vectors are supported for saving. The variable must be defined on the main sequence to be found. "
-			"The second is the name of the file that you would like to save too.(no file extenstion) Make this unique to your map so as not to conflict with other maps.");
+			"The second is the name of the file that you would like to save too. The file name parameter only accepts alpha-numeric characters for a valid file name.");
 		return;
 	}
 
-	std::vector<std::string> kismetVars;
-	std::stringstream kismetVarsStream(params[0]);
-	std::string kismetVar;
-	while (std::getline(kismetVarsStream, kismetVar, ',')) {
-		kismetVars.push_back(kismetVar);
+	const std::string& fileName = params[1];
+	if (std::find_if(fileName.begin(), fileName.end(), [](char c) { return !isalnum(c); }) != fileName.end()) {
+		cvarManager->log("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
+		return;
 	}
+
+	auto kismetVars = SplitStringByChar(params[0], ',');
 
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 	auto allVars = sequence.GetAllSequenceVariables(false);
 
-	std::ofstream dataFile(expansionFolder / (params[1] + ".data"));
+	std::ofstream dataFile(expansionFolder / (fileName + ".data"));
 	if (dataFile.is_open()) {
 		for (auto& curVar : kismetVars) {
 			auto mapSeqVar = allVars.find(curVar);
@@ -243,13 +237,20 @@ void MapExpansionPlugin::SaveDataCommand(const std::vector<std::string>& params)
 void MapExpansionPlugin::LoadDataCommand(const std::vector<std::string>& params)
 {
 	if (params.size() != 1) {
-		cvarManager->log("loaddata command expects 1 parameter. It should be the name of the file that you have saved to without a fileextension.");
+		cvarManager->log(L"loaddata command expects 1 parameter. It should be the name of the file that you have saved data to. "
+			"The file name parameter only accepts alpha-numeric characters for a valid file name.");
 		return;
 	}
 
-	auto saveDataPath = expansionFolder / (params[0] + ".data");
+	const std::string& fileName = params[0];
+	if (std::find_if(fileName.begin(), fileName.end(), [](char c) { return !isalnum(c); }) != fileName.end()) {
+		cvarManager->log("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
+		return;
+	}
+
+	auto saveDataPath = expansionFolder / (fileName + ".data");
 	if (!std::filesystem::exists(saveDataPath)) {
-		cvarManager->log("File " + params[0] + ".data doesn't exist. Ignore if this is first time loading the map");
+		cvarManager->log("File " + fileName + ".data doesn't exist. Ignore if this is first time loading the map");
 	}
 
 	auto sequence = gameWrapper->GetMainSequence();
@@ -376,6 +377,48 @@ void MapExpansionPlugin::RemoteEventCommand(const std::vector<std::string>& para
 	sequence.ActivateRemoteEvents(params[0]);
 }
 
+void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& params)
+{
+	if (params.size() != 3) {
+		cvarManager->log(L"The change score command expects 3 parameters. The first parameter is the team color either blue or orange. "
+			"The second parameter is the operation either add or sub. The third parameter is the amount of goals to add or subtract");
+		return;
+	}
+
+	if (gameWrapper->IsInOnlineGame()) return;
+	auto server = gameWrapper->GetCurrentGameState();
+	if (!server) return;
+	auto teams = server.GetTeams();
+	if (teams.IsNull()) return;
+
+	if (params[0] != "blue" && params[0] != "orange") {
+		cvarManager->log(L"The team color must be either blue or orange");
+		return;
+	}
+
+	int teamNum = params[0] == "blue" ? 0 : 1;
+
+	if (params[1] != "add" && params[1] != "sub") {
+		cvarManager->log(L"The operation must be either add or sub");
+		return;
+	}
+
+	int mult = params[1] == "add" ? 1 : -1;
+
+	if (params[2].find_first_not_of("0123456789") != std::string::npos) {
+		cvarManager->log(L"The number of goals must be a number, no letters or symbols allowed.");
+		return;
+	}
+
+	int goals = std::stoi(params[2]) * mult;
+
+	for (int i = 0; i < teams.Count(); ++i) {
+		auto team = teams.Get(i);
+		if (!team.IsNull() && team.GetTeamNum2() == teamNum)
+			team.ScorePoint(goals);
+	}
+}
+
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
 {
 	KeyPressParams* keyPressData = (KeyPressParams*)params;
@@ -434,6 +477,18 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 	inputBlocked = false;
 	isInMap = false;
 	mapBinds.clear();
+}
+
+std::vector<std::string> MapExpansionPlugin::SplitStringByChar(const std::string& str, const char& sep)
+{
+	std::vector<std::string> splitString;
+	std::stringstream splitStringStream(str);
+	std::string stringSegment;
+	while (std::getline(splitStringStream, stringSegment, sep)) {
+		splitString.push_back(stringSegment);
+	}
+
+	return splitString;
 }
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
