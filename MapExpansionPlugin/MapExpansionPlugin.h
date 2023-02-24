@@ -29,6 +29,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	void LoadDataCommand(const std::vector<std::string>& params);
 	void RemoteEventCommand(const std::vector<std::string>& params);
 	void ChangeScoreCommand(const std::vector<std::string>& params);
+	void ChangeGameState(const std::vector<std::string>& params);
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);

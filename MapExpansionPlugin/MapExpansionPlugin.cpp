@@ -23,6 +23,7 @@ void MapExpansionPlugin::onLoad()
 	custCommands["loaddata"] = std::bind(&MapExpansionPlugin::LoadDataCommand, this, _1);
 	custCommands["remoteevent"] = std::bind(&MapExpansionPlugin::RemoteEventCommand, this, _1);
 	custCommands["changescore"] = std::bind(&MapExpansionPlugin::ChangeScoreCommand, this, _1);
+	custCommands["gamestate"] = std::bind(&MapExpansionPlugin::ChangeGameState, this, _1);
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	if (!std::filesystem::exists(expansionFolder))
@@ -399,7 +400,7 @@ void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& para
 	int teamNum = params[0] == "blue" ? 0 : 1;
 
 	if (params[1] != "add" && params[1] != "sub") {
-		cvarManager->log(L"The operation must be either add or sub");
+		cvarManager->log(L"The operation must be either add or sub,");
 		return;
 	}
 
@@ -416,6 +417,25 @@ void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& para
 		auto team = teams.Get(i);
 		if (!team.IsNull() && team.GetTeamNum2() == teamNum)
 			team.ScorePoint(goals);
+	}
+
+	cvarManager->log("Changing score of " + params[0] + " by " + std::to_string(goals));
+}
+
+void MapExpansionPlugin::ChangeGameState(const std::vector<std::string>& params)
+{
+	if (params.size() != 1) {
+		cvarManager->log("The gamestate command expects 1 parameter. Right now you can only end the game with end.");
+		return;
+	}
+
+	if (gameWrapper->IsInOnlineGame()) return;
+	auto server = gameWrapper->GetCurrentGameState();
+	if (!server) return;
+	
+	if (params[0] == "end") {
+		server.EndGame();
+		cvarManager->log("Ending match.");
 	}
 }
 
