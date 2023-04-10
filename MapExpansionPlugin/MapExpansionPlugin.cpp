@@ -7,6 +7,9 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <windows.h>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 
 BAKKESMOD_PLUGIN(MapExpansionPlugin, "Plugin for expanding map creators capabilities", plugin_version, PLUGINTYPE_FREEPLAY)
 
@@ -24,6 +27,8 @@ void MapExpansionPlugin::onLoad()
 	custCommands["remoteevent"] = std::bind(&MapExpansionPlugin::RemoteEventCommand, this, _1);
 	custCommands["changescore"] = std::bind(&MapExpansionPlugin::ChangeScoreCommand, this, _1);
 	custCommands["gamestate"] = std::bind(&MapExpansionPlugin::ChangeGameState, this, _1);
+	custCommands["playsound"] = std::bind(&MapExpansionPlugin::PlaySoundHandler, this, _1);
+	custCommands["stopsound"] = std::bind(&MapExpansionPlugin::StopSoundHandler, this, _1);
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	if (!std::filesystem::exists(expansionFolder))
@@ -380,9 +385,10 @@ void MapExpansionPlugin::RemoteEventCommand(const std::vector<std::string>& para
 
 void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& params)
 {
-	if (params.size() != 3) {
-		cvarManager->log(L"The change score command expects 3 parameters. The first parameter is the team color either blue or orange. "
-			"The second parameter is the operation either add or sub. The third parameter is the amount of goals to add or subtract");
+	if (params.size() != 3 && params.size() != 4) {
+		cvarManager->log(L"The change score command expects 3 parameters with 1 optional parameter. The first parameter is the team color either blue or orange. "
+			"The second parameter is the operation either add or sub. The third parameter is the amount of goals to add or subtract. The optional parameter is "
+		    "the player id of whom to give or remove the goals from.");
 		return;
 	}
 
@@ -420,6 +426,33 @@ void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& para
 	}
 
 	cvarManager->log("Changing score of " + params[0] + " by " + std::to_string(goals));
+
+	if (params.size() == 3) return;
+
+	if (params[3].find_first_not_of("0123456789") != std::string::npos) {
+		cvarManager->log(L"The player id must be an integer. You can find it from 'Player > PRI > PlayerID' object properties.");
+		return;
+	}
+
+	Netcode->SendNewMessage("cs " + params[1] + " " + params[2] + " " + params[3]);
+}
+
+void MapExpansionPlugin::UpdatePlayerScore(const std::string& mult, const int& amount, const int& playerId)
+{
+	int goals = amount * (mult == "add" ? 1 : -1);
+	auto server = gameWrapper->GetCurrentGameState();
+	if (!server) return;
+	auto cars = server.GetCars();
+	if (cars.IsNull()) return;
+	for (int i = 0; i < cars.Count(); ++i) {
+		auto car = cars.Get(i);
+		if (!car) continue;
+		auto pri = car.GetPRI();
+		if (!pri) continue;
+		if (pri.GetPlayerID() == playerId) {
+			pri.SetMatchGoals(pri.GetMatchGoals() + goals);
+		}
+	}
 }
 
 void MapExpansionPlugin::ChangeGameState(const std::vector<std::string>& params)
@@ -437,6 +470,77 @@ void MapExpansionPlugin::ChangeGameState(const std::vector<std::string>& params)
 		server.EndGame();
 		cvarManager->log("Ending match.");
 	}
+}
+
+void MapExpansionPlugin::PlaySoundHandler(const std::vector<std::string>& params)
+{
+	if (params.size() != 2) {
+		cvarManager->log(L"The playsound command expects two parameters. The first is the name of the file which is only allowed to contain alpha-numeric "
+			"characters. This command can only play .wav files. Make sure the file is in the '{bakkesmodfolder}/data/expansion' folder. The second is either "
+		    "a comma seperated list of player ids(no spaces) who will hear the sound, or the word 'all' to have every player hear the sound.");
+		return;
+	}
+
+	if (std::find_if(params[0].begin(), params[0].end(), [](char c) { return !isalnum(c); }) != params[0].end()) {
+		cvarManager->log("Invalid File Name: \"" + params[0] + "\". Only alpha-numeric characters are allowed for a file name.");
+		return;
+	}
+
+	if (params[1] == "all") {
+		Netcode->SendNewMessage("ps " + params[0] + " all");
+		cvarManager->log("Sending playsound command for file " + params[0] + " to all players.");
+	}
+	else {
+		auto playerIds = SplitStringByChar(params[1], ',');
+		for (const auto& playerId : playerIds) {
+			Netcode->SendNewMessage("ps " + params[0] + " " + playerId);
+			cvarManager->log("Sending playsound command for file " + params[0] + " to id : " + playerId);
+		}
+	}
+}
+
+void MapExpansionPlugin::PlaySoundFromFile(const std::string& wavFile)
+{
+	std::string fileName = wavFile + ".wav";
+	auto soundPath = expansionFolder / (fileName);
+	if (!std::filesystem::exists(soundPath)) {
+		cvarManager->log("Unable to locate \"" + fileName + "\". Make sure the file is named correctly, is a .wav file, and inside the '{bakkesmodfolder}/data/expansion' folder.");
+		return;
+	}
+
+	cvarManager->log("Attempting to play sound from " + fileName);
+	bool result = PlaySound(soundPath.wstring().c_str(), NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+	if (result) {
+		cvarManager->log("Sound successfully played.");
+	}
+	else {
+		cvarManager->log("Error playing sound");
+	}
+}
+
+void MapExpansionPlugin::StopSoundHandler(const std::vector<std::string>& params)
+{
+	if (params.size() != 1) {
+		cvarManager->log(L"The stopsound command expects one parameter. It's either a comma seperated list of player ids(no spaces), or the word 'all' to have the sound stop for everyone.");
+		return;
+	}
+
+	if (params[0] == "all") {
+		Netcode->SendNewMessage("ss all");
+		cvarManager->log("Sending stopsound command to all players.");
+	}
+	else {
+		auto playerIds = SplitStringByChar(params[0], ',');
+		for (const auto& playerId : playerIds) {
+			Netcode->SendNewMessage("ss " + playerId);
+			cvarManager->log("Sending stopsound command to id: " + playerId);
+		}
+	}
+}
+
+void MapExpansionPlugin::StopSound()
+{
+	PlaySound(NULL, 0, 0);
 }
 
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
@@ -497,6 +601,7 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 	inputBlocked = false;
 	isInMap = false;
 	mapBinds.clear();
+	StopSound();
 }
 
 std::vector<std::string> MapExpansionPlugin::SplitStringByChar(const std::string& str, const char& sep)
@@ -513,6 +618,40 @@ std::vector<std::string> MapExpansionPlugin::SplitStringByChar(const std::string
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
 {
+	if (!Sender || Message.empty()) return;
+	auto parsedMessage = SplitStringByChar(Message, ' ');
+	if (parsedMessage.size() == 0) return;
+
+	if (parsedMessage[0] == "ps" && parsedMessage.size() == 3) {
+		if (parsedMessage[2] == "all") {
+			PlaySoundFromFile(parsedMessage[1]);
+			return;
+		}
+
+		if (!IsMyId(parsedMessage[2])) return;
+		PlaySoundFromFile(parsedMessage[1]);
+	}
+	else if (parsedMessage[0] == "ss" && parsedMessage.size() == 2) {
+		if (parsedMessage[1] == "all") {
+			StopSound();
+			return;
+		}
+
+		if (!IsMyId(parsedMessage[1])) return;
+		StopSound();
+	}
+	else if (parsedMessage[0] == "cs" && parsedMessage.size() == 4) {
+		UpdatePlayerScore(parsedMessage[1], std::stoi(parsedMessage[2]), std::stoi(parsedMessage[3]));
+	}
+}
+
+bool MapExpansionPlugin::IsMyId(const std::string& idString)
+{
+	auto curPC = gameWrapper->GetPlayerController();
+	if (!curPC) return false;
+	auto pri = curPC.GetPRI();
+	if (!pri) return false;
+	return pri.GetPlayerID() == std::stoi(idString);
 }
 
 void MapExpansionPlugin::RenderSettings()

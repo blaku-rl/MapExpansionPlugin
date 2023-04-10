@@ -29,7 +29,12 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	void LoadDataCommand(const std::vector<std::string>& params);
 	void RemoteEventCommand(const std::vector<std::string>& params);
 	void ChangeScoreCommand(const std::vector<std::string>& params);
+	void UpdatePlayerScore(const std::string& mult, const int& amount, const int& playerId);
 	void ChangeGameState(const std::vector<std::string>& params);
+	void PlaySoundHandler(const std::vector<std::string>& params);
+	void PlaySoundFromFile(const std::string& wavFile);
+	void StopSoundHandler(const std::vector<std::string>& params);
+	void StopSound();
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);
@@ -44,6 +49,7 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 
 	//Netcode Requirement
 	void OnMessageRecieved(const std::string& Message, PriWrapper Sender);
+	bool IsMyId(const std::string& idString);
 	std::shared_ptr<NetcodeManager> Netcode;
 
 	//Custom command implementation
