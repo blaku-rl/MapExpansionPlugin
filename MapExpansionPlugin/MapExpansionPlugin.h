@@ -29,7 +29,8 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	void LoadDataCommand(const std::vector<std::string>& params);
 	void RemoteEventCommand(const std::vector<std::string>& params);
 	void ChangeScoreCommand(const std::vector<std::string>& params);
-	void UpdatePlayerScore(const std::string& mult, const int& amount, const int& playerId);
+	void ChangeStatsCommand(const std::vector<std::string>& params);
+	void UpdatePlayerStats(const int& playerId, const int& modifiedAmount, const std::string& statType);
 	void ChangeGameState(const std::vector<std::string>& params);
 	void PlaySoundHandler(const std::vector<std::string>& params);
 	void PlaySoundFromFile(const std::string& wavFile);
@@ -44,6 +45,8 @@ class MapExpansionPlugin: public BakkesMod::Plugin::BakkesModPlugin, public Bakk
 	//Management
 	void MapPluginVarCheck(std::string eventName);
 	void MapUnload(std::string eventName);
+	bool IsNumeric(const std::string& str);
+	bool IsAlphaNumeric(const std::string& str);
 	std::vector<std::string> SplitStringByChar(const std::string& str, const char& sep);
 	std::filesystem::path expansionFolder = gameWrapper->GetDataFolder() / "expansion";
 

@@ -26,6 +26,7 @@ void MapExpansionPlugin::onLoad()
 	custCommands["loaddata"] = std::bind(&MapExpansionPlugin::LoadDataCommand, this, _1);
 	custCommands["remoteevent"] = std::bind(&MapExpansionPlugin::RemoteEventCommand, this, _1);
 	custCommands["changescore"] = std::bind(&MapExpansionPlugin::ChangeScoreCommand, this, _1);
+	custCommands["changestats"] = std::bind(&MapExpansionPlugin::ChangeStatsCommand, this, _1);
 	custCommands["gamestate"] = std::bind(&MapExpansionPlugin::ChangeGameState, this, _1);
 	custCommands["playsound"] = std::bind(&MapExpansionPlugin::PlaySoundHandler, this, _1);
 	custCommands["stopsound"] = std::bind(&MapExpansionPlugin::StopSoundHandler, this, _1);
@@ -115,6 +116,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 
 void MapExpansionPlugin::ParseCommands(const std::string& commands)
 {
+	cvarManager->log("Commands to exectue: '" + commands + "'");
 	auto commandList = SplitStringByChar(commands, ';');
 	for (auto& command : commandList) {
 		auto splitCommand = SplitStringByChar(command, ' ');
@@ -188,7 +190,7 @@ void MapExpansionPlugin::SaveDataCommand(const std::vector<std::string>& params)
 	}
 
 	const std::string& fileName = params[1];
-	if (std::find_if(fileName.begin(), fileName.end(), [](char c) { return !isalnum(c); }) != fileName.end()) {
+	if (!IsAlphaNumeric(fileName)) {
 		cvarManager->log("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
 		return;
 	}
@@ -249,7 +251,7 @@ void MapExpansionPlugin::LoadDataCommand(const std::vector<std::string>& params)
 	}
 
 	const std::string& fileName = params[0];
-	if (std::find_if(fileName.begin(), fileName.end(), [](char c) { return !isalnum(c); }) != fileName.end()) {
+	if (!IsAlphaNumeric(fileName)) {
 		cvarManager->log("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
 		return;
 	}
@@ -385,10 +387,9 @@ void MapExpansionPlugin::RemoteEventCommand(const std::vector<std::string>& para
 
 void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& params)
 {
-	if (params.size() != 3 && params.size() != 4) {
-		cvarManager->log(L"The change score command expects 3 parameters with 1 optional parameter. The first parameter is the team color either blue or orange. "
-			"The second parameter is the operation either add or sub. The third parameter is the amount of goals to add or subtract. The optional parameter is "
-		    "the player id of whom to give or remove the goals from.");
+	if (params.size() != 3) {
+		cvarManager->log(L"The change score command expects 3 parameters. The first parameter is the team color either blue or orange. "
+			"The second parameter is the operation either add or sub. The third parameter is the amount of goals to add or subtract.");
 		return;
 	}
 
@@ -399,20 +400,20 @@ void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& para
 	if (teams.IsNull()) return;
 
 	if (params[0] != "blue" && params[0] != "orange") {
-		cvarManager->log(L"The team color must be either blue or orange");
+		cvarManager->log(L"The team color must be either blue or orange.");
 		return;
 	}
 
 	int teamNum = params[0] == "blue" ? 0 : 1;
 
 	if (params[1] != "add" && params[1] != "sub") {
-		cvarManager->log(L"The operation must be either add or sub,");
+		cvarManager->log(L"The operation must be either add or sub.");
 		return;
 	}
 
 	int mult = params[1] == "add" ? 1 : -1;
 
-	if (params[2].find_first_not_of("0123456789") != std::string::npos) {
+	if (!IsNumeric(params[2])) {
 		cvarManager->log(L"The number of goals must be a number, no letters or symbols allowed.");
 		return;
 	}
@@ -426,20 +427,46 @@ void MapExpansionPlugin::ChangeScoreCommand(const std::vector<std::string>& para
 	}
 
 	cvarManager->log("Changing score of " + params[0] + " by " + std::to_string(goals));
+}
 
-	if (params.size() == 3) return;
-
-	if (params[3].find_first_not_of("0123456789") != std::string::npos) {
-		cvarManager->log(L"The player id must be an integer. You can find it from 'Player > PRI > PlayerID' object properties.");
+void MapExpansionPlugin::ChangeStatsCommand(const std::vector<std::string>& params)
+{
+	if (params.size() != 4) {
+		cvarManager->log(L"The change stats command expects 4 parameters. The first is the stat to change. The avaiable stats to change are: "
+			              "'assists goals saves score shots'. The second parameter is is the operation either add or sub. The third parameter is the amount you would "
+		                  "like to increment or decrement the stat by. The fourth parameter is the playerid to change stats for.");
 		return;
 	}
 
-	Netcode->SendNewMessage("cs " + params[1] + " " + params[2] + " " + params[3]);
+	if (gameWrapper->IsInOnlineGame()) return;
+	auto server = gameWrapper->GetCurrentGameState();
+	if (!server) return;
+
+	if (params[0] != "assists" && params[0] != "goals" && params[0] != "saves" && params[0] != "score" && params[0] != "shots") {
+		cvarManager->log("The first parameter must be on of the following: 'assists goals saves score shots'. " + params[0] + " is not recognized.");
+		return;
+	}
+
+	if (params[1] != "add" && params[1] != "sub") {
+		cvarManager->log("The second parameter must be either add or sub.");
+		return;
+	}
+
+	if (!IsNumeric(params[2])) {
+		cvarManager->log("The third parameter is the amount to change the stat by, and must be a number. No letters or symbols are allowed.");
+		return;
+	}
+
+	if (!IsNumeric(params[3])) {
+		cvarManager->log("The fourth parameter must be a number that is the playerid. You can access the playerid through the object property chain of Player > PRI > PlayerID");
+		return;
+	}
+
+	Netcode->SendNewMessage("cs " + params[0] + " " + params[1] + " " + params[2] + " " + params[3]);
 }
 
-void MapExpansionPlugin::UpdatePlayerScore(const std::string& mult, const int& amount, const int& playerId)
+void MapExpansionPlugin::UpdatePlayerStats(const int& playerId, const int& modifiedAmount, const std::string& statType)
 {
-	int goals = amount * (mult == "add" ? 1 : -1);
 	auto server = gameWrapper->GetCurrentGameState();
 	if (!server) return;
 	auto cars = server.GetCars();
@@ -449,9 +476,25 @@ void MapExpansionPlugin::UpdatePlayerScore(const std::string& mult, const int& a
 		if (!car) continue;
 		auto pri = car.GetPRI();
 		if (!pri) continue;
-		if (pri.GetPlayerID() == playerId) {
-			pri.SetMatchGoals(pri.GetMatchGoals() + goals);
+		if (pri.GetPlayerID() != playerId) continue;
+
+		if (statType == "assists") {
+			pri.SetMatchAssists(pri.GetMatchAssists() + modifiedAmount);
 		}
+		else if (statType == "goals") {
+			pri.SetMatchGoals(pri.GetMatchGoals() + modifiedAmount);
+		}
+		else if (statType == "saves") {
+			pri.SetMatchSaves(pri.GetMatchSaves() + modifiedAmount);
+		}
+		else if (statType == "score") {
+			pri.SetMatchScore(pri.GetMatchScore() + modifiedAmount);
+		}
+		else if (statType == "shots") {
+			pri.SetMatchShots(pri.GetMatchShots() + modifiedAmount);
+		}
+
+		break;
 	}
 }
 
@@ -481,7 +524,7 @@ void MapExpansionPlugin::PlaySoundHandler(const std::vector<std::string>& params
 		return;
 	}
 
-	if (std::find_if(params[0].begin(), params[0].end(), [](char c) { return !isalnum(c); }) != params[0].end()) {
+	if (!IsAlphaNumeric(params[0])) {
 		cvarManager->log("Invalid File Name: \"" + params[0] + "\". Only alpha-numeric characters are allowed for a file name.");
 		return;
 	}
@@ -604,6 +647,16 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 	StopSound();
 }
 
+bool MapExpansionPlugin::IsNumeric(const std::string& str)
+{
+	return str.find_first_not_of("0123456789") == std::string::npos;
+}
+
+bool MapExpansionPlugin::IsAlphaNumeric(const std::string& str)
+{
+	return std::find_if(str.begin(), str.end(), [](char c) { return !isalnum(c); }) == str.end();
+}
+
 std::vector<std::string> MapExpansionPlugin::SplitStringByChar(const std::string& str, const char& sep)
 {
 	std::vector<std::string> splitString;
@@ -640,13 +693,16 @@ void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrappe
 		if (!IsMyId(parsedMessage[1])) return;
 		StopSound();
 	}
-	else if (parsedMessage[0] == "cs" && parsedMessage.size() == 4) {
-		UpdatePlayerScore(parsedMessage[1], std::stoi(parsedMessage[2]), std::stoi(parsedMessage[3]));
+	else if (parsedMessage[0] == "cs" && parsedMessage.size() == 5) {
+		int modAmount = std::stoi(parsedMessage[3]);
+		modAmount = modAmount * (parsedMessage[2] == "add" ? 1 : -1);
+		UpdatePlayerStats(std::stoi(parsedMessage[4]), modAmount, parsedMessage[1]);
 	}
 }
 
 bool MapExpansionPlugin::IsMyId(const std::string& idString)
 {
+	if (!IsNumeric(idString)) return false;
 	auto curPC = gameWrapper->GetPlayerController();
 	if (!curPC) return false;
 	auto pri = curPC.GetPRI();
