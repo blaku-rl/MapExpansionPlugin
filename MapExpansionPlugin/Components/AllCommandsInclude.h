@@ -8,3 +8,4 @@
 #include "ChangeScoreCommand/ChangeScoreCommand.h"
 #include "ChangeStatsCommand/ChangeStatsCommand.h"
 #include "GameStateCommand/GameStateCommand.h"
+#include "SaveDataPrefixCommand/SaveDataPrefixCommand.h"

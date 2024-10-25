@@ -24,6 +24,7 @@ void MapExpansionPlugin::onLoad()
 	customCommands.emplace_back("changescore", std::make_unique<ChangeScoreCommand>(this));
 	customCommands.emplace_back("changestats", std::make_unique<ChangeStatsCommand>(this));
 	customCommands.emplace_back("gamestate", std::make_unique<GameStateCommand>(this));
+	customCommands.emplace_back("savedataprefix", std::make_unique<SaveDataPrefixCommand>(this));
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
@@ -76,7 +77,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 
 	//Check for bm console command
 	auto command = mapVariables.find("bmcommand");
-	if (command != mapVariables.end() && command->second.IsString() && command->second.GetString() != "") {
+	if (command != mapVariables.end() and command->second.IsString() and command->second.GetString() != "") {
 		LOG("Map {} is running '{}'", gameWrapper->GetCurrentMap(), command->second.GetString());
 		cvarManager->executeCommand(command->second.GetString());
 		command->second.SetString("");
@@ -84,14 +85,14 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 
 	//Check for bm logging
 	auto bmlog = mapVariables.find("bmlog");
-	if (bmlog != mapVariables.end() && bmlog->second.IsString() && bmlog->second.GetString() != "") {
+	if (bmlog != mapVariables.end() and bmlog->second.IsString() and bmlog->second.GetString() != "") {
 		LOG("Map {} says '{}'", gameWrapper->GetCurrentMap(), bmlog->second.GetString());
 		bmlog->second.SetString("");
 	}
 
 	//Check for custom commands
 	auto custCommand = mapVariables.find("mepcommand");
-	if (custCommand != mapVariables.end() && custCommand->second.IsString() && custCommand->second.GetString() != "") {
+	if (custCommand != mapVariables.end() and custCommand->second.IsString() and custCommand->second.GetString() != "") {
 		auto custCommandValue = custCommand->second.GetString();
 		ParseCommands(custCommandValue);
 		custCommand->second.SetString("");
@@ -132,14 +133,14 @@ void MapExpansionPlugin::BlockInput(const bool& isBlocked)
 	inputBlocked = isBlocked;
 }
 
-bool MapExpansionPlugin::DoesKeyExist(const std::string& keyName)
+bool MapExpansionPlugin::DoesKeyExist(const std::string& keyName) const
 {
 	return keyNameToIndex.find(keyName) != keyNameToIndex.end();
 }
 
-int MapExpansionPlugin::GetIndexFromKey(const std::string& keyName)
+int MapExpansionPlugin::GetIndexFromKey(const std::string& keyName) const
 {
-	return keyNameToIndex[keyName];
+	return keyNameToIndex.at(keyName);
 }
 
 void MapExpansionPlugin::AddKeyBind(const MapBind& bind)
@@ -147,7 +148,15 @@ void MapExpansionPlugin::AddKeyBind(const MapBind& bind)
 	mapBinds.push_back(bind);
 }
 
-std::filesystem::path MapExpansionPlugin::GetExpansionFolder()
+void MapExpansionPlugin::SendInfoToMap(const std::string& str)
+{
+	LOG("Setting mepoutput to {}", str);
+	auto outVar = mapVariables.find("mepoutput");
+	if (outVar != mapVariables.end() and outVar->second.IsString())
+		outVar->second.SetString(str);
+}
+
+std::filesystem::path MapExpansionPlugin::GetExpansionFolder() const
 {
 	return gameWrapper->GetDataFolder() / "expansion";
 }
@@ -169,7 +178,7 @@ void MapExpansionPlugin::CheckForSatisfiedBinds()
 {
 	for (auto& binding : mapBinds) {
 		bool keysPressedForBinding = CheckForAllKeysPressed(binding.keyListFnameIndex);
-		if (keysPressedForBinding && !binding.allKeysPressed) {
+		if (keysPressedForBinding and !binding.allKeysPressed) {
 			binding.allKeysPressed = true;
 			auto sequence = gameWrapper->GetMainSequence();
 			if (sequence.memory_address == NULL) return;
@@ -177,7 +186,7 @@ void MapExpansionPlugin::CheckForSatisfiedBinds()
 			LOG("Activating remote event '{}'", binding.remoteEvent);
 			sequence.ActivateRemoteEvents(binding.remoteEvent);
 		}
-		else if (!keysPressedForBinding && binding.allKeysPressed) {
+		else if (!keysPressedForBinding and binding.allKeysPressed) {
 			binding.allKeysPressed = false;
 		}
 	}

@@ -102,6 +102,9 @@
     <ClCompile Include="Components\GameStateCommand\GameStateCommand.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapExpansionPlugin.h">
@@ -201,6 +204,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Components\GameStateCommand\GameStateCommand.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

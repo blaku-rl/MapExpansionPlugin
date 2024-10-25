@@ -76,7 +76,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(BakkesModPath)\bakkesmodsdk\include;$(ProjectDir)fmt\include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -118,6 +118,7 @@
     <ClCompile Include="Components\SaveDataCommand\SaveDataCommand.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.cpp" />
     <ClCompile Include="Utility\Utils.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -156,6 +157,7 @@
     <ClInclude Include="Components\LoadDataCommand\LoadDataCommand.h" />
     <ClInclude Include="Components\RemoteEventCommand\RemoteEventCommand.h" />
     <ClInclude Include="Components\SaveDataCommand\SaveDataCommand.h" />
+    <ClInclude Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.h" />
     <ClInclude Include="Utility\Constants.h" />
     <ClInclude Include="Utility\KismetIncludes.h" />
     <ClInclude Include="Utility\Utils.h" />

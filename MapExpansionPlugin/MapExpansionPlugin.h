@@ -30,10 +30,11 @@ class MapExpansionPlugin: public BasePlugin, public BakkesMod::Plugin::PluginSet
 
 	//Exposure to commands
 	void BlockInput(const bool& isBlocked) override;
-	bool DoesKeyExist(const std::string& keyName) override;
-	int GetIndexFromKey(const std::string& keyName) override;
+	bool DoesKeyExist(const std::string& keyName) const override;
+	int GetIndexFromKey(const std::string& keyName) const override;
 	void AddKeyBind(const MapBind& bind) override;
-	std::filesystem::path GetExpansionFolder() override;
+	void SendInfoToMap(const std::string& str) override;
+	std::filesystem::path GetExpansionFolder() const override;
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);
