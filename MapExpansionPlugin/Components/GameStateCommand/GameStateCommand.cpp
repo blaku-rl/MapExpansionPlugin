@@ -24,9 +24,6 @@ void GameStateCommand::CommandFunction(const std::vector<std::string>& params)
 	}
 	else if (params[0] == "kickoff") {
 		server.StartNewRound();
-		//server.ResetBalls();
-		//server.ResetPlayers();
-		//server.SetRestartingMatch(1);
 		LOG("Reseting from kickoff.");
 	}
 }

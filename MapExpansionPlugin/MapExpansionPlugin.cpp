@@ -7,7 +7,7 @@
 #include <bakkesmod/wrappers/kismet/SequenceOpWrapper.h>
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
 
-BAKKESMOD_PLUGIN(MapExpansionPlugin, "Plugin for expanding map creators capabilities", plugin_version, PLUGINTYPE_FREEPLAY)
+BAKKESMOD_PLUGIN(MapExpansionPlugin, "Map Expansion Plugin", plugin_version, PLUGINTYPE_FREEPLAY)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
@@ -71,7 +71,9 @@ void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
 void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
 	if (!isInMap) return;
-	if (!gameWrapper->GetGameEventAsServer() || !isSetupComplete) { return; }
+	if (!gameWrapper->GetGameEventAsServer() or !isSetupComplete) { return; }
+
+	//maybe remove for multiplayer input controls
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 
@@ -154,11 +156,25 @@ void MapExpansionPlugin::SendInfoToMap(const std::string& str)
 	auto outVar = mapVariables.find("mepoutput");
 	if (outVar != mapVariables.end() and outVar->second.IsString())
 		outVar->second.SetString(str);
+	ActivateRemoteEvent("MEPOutput");
 }
 
 std::filesystem::path MapExpansionPlugin::GetExpansionFolder() const
 {
 	return gameWrapper->GetDataFolder() / "expansion";
+}
+
+std::map<std::string, SequenceVariableWrapper>& MapExpansionPlugin::GetMapVariables()
+{
+	return mapVariables;
+}
+
+void MapExpansionPlugin::ActivateRemoteEvent(const std::string& eventName) const
+{
+	auto sequence = gameWrapper->GetMainSequence();
+	if (sequence.memory_address == NULL) return;
+	LOG("Activating remote event '{}'", eventName);
+	sequence.ActivateRemoteEvents(eventName);
 }
 
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
@@ -180,11 +196,7 @@ void MapExpansionPlugin::CheckForSatisfiedBinds()
 		bool keysPressedForBinding = CheckForAllKeysPressed(binding.keyListFnameIndex);
 		if (keysPressedForBinding and !binding.allKeysPressed) {
 			binding.allKeysPressed = true;
-			auto sequence = gameWrapper->GetMainSequence();
-			if (sequence.memory_address == NULL) return;
-
-			LOG("Activating remote event '{}'", binding.remoteEvent);
-			sequence.ActivateRemoteEvents(binding.remoteEvent);
+			ActivateRemoteEvent(binding.remoteEvent);
 		}
 		else if (!keysPressedForBinding and binding.allKeysPressed) {
 			binding.allKeysPressed = false;
@@ -216,9 +228,7 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	if (isInMap) return;
 	if (!gameWrapper->GetGameEventAsServer()) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
-	if (sequence.memory_address == NULL) { return; }
-	mapVariables = sequence.GetAllSequenceVariables(false);
-	sequence.ActivateRemoteEvents("MEPLoaded");
+	ActivateRemoteEvent("MEPLoaded");
 	LOG("Map Expansion Plugin Loaded");
 	isInMap = true;
 }
@@ -232,7 +242,7 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)
 {
-	if (!Sender || Message.empty()) return;
+	if (!Sender or Message.empty()) return;
 	auto parsedMessage = Utils::SplitStringByChar(Message, ' ');
 	if (parsedMessage.size() == 0) return;
 	std::string commandId = parsedMessage[0];

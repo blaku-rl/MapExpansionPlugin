@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ChangeStatsCommand.h"
 #include "../../Utility/Utils.h"
+#include <ranges>
 
 ChangeStatsCommand::ChangeStatsCommand(BasePlugin* plugin) : BaseCommand(plugin)
 {
@@ -19,13 +20,15 @@ void ChangeStatsCommand::CommandFunction(const std::vector<std::string>& params)
 	auto server = plugin->gameWrapper->GetCurrentGameState();
 	if (!server) return;
 
-	if (params[0] != "assists" && params[0] != "goals" && params[0] != "saves" && params[0] != "score" && params[0] != "shots") {
-		LOG("The first parameter must be on of the following: 'assists goals saves score shots'. " + params[0] + " is not recognized.");
+	if (!validStats.contains(params[0])) {
+		auto statsStr = std::ranges::fold_left(validStats, "", [](std::string acc, std::string val) {return acc + " " + val; });
+		LOG("The first parameter must be one of the following: '{}'. {} is not recognized.", statsStr, params[0]);
 		return;
 	}
 
-	if (params[1] != "add" && params[1] != "sub") {
-		LOG("The second parameter must be either add or sub.");
+	if (!validOpps.contains(params[1])) {
+		auto oppsStr = std::ranges::fold_left(validOpps, "", [](std::string acc, std::string val) {return acc + " " + val; });
+		LOG("The second parameter must be one of the following: '{}'. {} is not recognized.", oppsStr, params[1]);
 		return;
 	}
 

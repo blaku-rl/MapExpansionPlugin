@@ -21,27 +21,24 @@ void SaveDataCommand::CommandFunction(const std::vector<std::string>& params)
 
 	const std::string& fileName = params[1];
 	if (!Utils::IsAlphaNumeric(fileName)) {
-		LOG("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
+		LOG("Invalid File Name: {}. Only alpha-numeric characters are allowed for a file name.", fileName);
 		return;
 	}
 
 	auto kismetVars = Utils::SplitStringByChar(params[0], ',');
-
-	auto sequence = plugin->gameWrapper->GetMainSequence();
-	if (sequence.memory_address == NULL) return;
-	auto allVars = sequence.GetAllSequenceVariables(false);
+	auto& mapVars = plugin->GetMapVariables();
 
 	std::ofstream dataFile(plugin->GetExpansionFolder() / (fileName + ".data"));
 	if (dataFile.is_open()) {
 		for (auto& curVar : kismetVars) {
-			auto mapSeqVar = allVars.find(curVar);
-			if (mapSeqVar == allVars.end()) {
-				LOG("Kismet Variable " + curVar + "was not found in the main sequence. Variable will not be saved");
+			auto mapSeqVar = mapVars.find(curVar);
+			if (mapSeqVar == mapVars.end()) {
+				LOG("Kismet Variable {} was not found in the main sequence. Variable will not be saved", curVar);
 				continue;
 			}
 			dataFile << "{\n";
 			dataFile << "    " << CONSTANTS::nameTag << curVar << "\n";
-			auto mapVar = allVars.find(curVar)->second;
+			auto& mapVar = mapVars.find(curVar)->second;
 			if (mapVar.IsBool()) {
 				dataFile << "    " << CONSTANTS::typeTag << "Bool\n";
 				dataFile << "    " << CONSTANTS::valueTag << (mapVar.GetBool() ? "1" : "0") << "\n";
@@ -69,7 +66,7 @@ void SaveDataCommand::CommandFunction(const std::vector<std::string>& params)
 	dataFile.close();
 
 	LOG("File " + params[1] + ".data has been saved");
-	sequence.ActivateRemoteEvents("MEPDataSaved");
+	plugin->ActivateRemoteEvent("MEPDataSaved");
 }
 
 void SaveDataCommand::NetcodeHandler(const std::vector<std::string>& params)

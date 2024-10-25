@@ -13,10 +13,7 @@ void RemoteEventCommand::CommandFunction(const std::vector<std::string>& params)
 		return;
 	}
 
-	auto sequence = plugin->gameWrapper->GetMainSequence();
-	if (sequence.memory_address == NULL) return;
-	LOG("Map " + plugin->gameWrapper->GetCurrentMap() + " is activating remote event " + params[0]);
-	sequence.ActivateRemoteEvents(params[0]);
+	plugin->ActivateRemoteEvent(params[0]);
 }
 
 void RemoteEventCommand::NetcodeHandler(const std::vector<std::string>& params)

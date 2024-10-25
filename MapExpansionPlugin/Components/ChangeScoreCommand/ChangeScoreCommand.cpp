@@ -47,7 +47,7 @@ void ChangeScoreCommand::CommandFunction(const std::vector<std::string>& params)
 			team.ScorePoint(goals);
 	}
 
-	LOG("Changing score of " + params[0] + " by " + std::to_string(goals));
+	LOG("Changing score of {} by {}", params[0], std::to_string(goals));
 }
 
 void ChangeScoreCommand::NetcodeHandler(const std::vector<std::string>& params)

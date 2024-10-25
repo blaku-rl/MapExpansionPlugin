@@ -18,4 +18,6 @@ public:
 	virtual void AddKeyBind(const MapBind& bind) = 0;
 	virtual void SendInfoToMap(const std::string& str) = 0;
 	virtual std::filesystem::path GetExpansionFolder() const = 0;
+	virtual std::map<std::string, SequenceVariableWrapper>& GetMapVariables() = 0;
+	virtual void ActivateRemoteEvent(const std::string& eventName) const = 0;
 };

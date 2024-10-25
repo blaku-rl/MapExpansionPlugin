@@ -20,18 +20,16 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 
 	const std::string& fileName = params[0];
 	if (!Utils::IsAlphaNumeric(fileName)) {
-		LOG("Invalid File Name: \"" + fileName + "\". Only alpha-numeric characters are allowed for a file name.");
+		LOG("Invalid File Name: {}. Only alpha-numeric characters are allowed for a file name.", fileName);
 		return;
 	}
 
 	auto saveDataPath = plugin->GetExpansionFolder() / (fileName + ".data");
 	if (!std::filesystem::exists(saveDataPath)) {
-		LOG("File " + fileName + ".data doesn't exist. Ignore if this is first time loading the map");
+		LOG("File {}.data doesn't exist. Ignore if this is first time loading the map", fileName);
 	}
 
-	auto sequence = plugin->gameWrapper->GetMainSequence();
-	if (sequence.memory_address == NULL) return;
-	auto allVars = sequence.GetAllSequenceVariables(false);
+	auto& mapVars = plugin->GetMapVariables();
 
 	std::ifstream dataFile(saveDataPath);
 	if (dataFile.is_open()) {
@@ -59,9 +57,9 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 				varValue = line.substr(line.find(CONSTANTS::valueTag) + CONSTANTS::valueTag.size(), std::string::npos);
 			}
 
-			auto varMap = allVars.find(varName);
-			if (varMap == allVars.end()) {
-				LOG("Variable " + varName + " was not found in the map.");
+			auto varMap = mapVars.find(varName);
+			if (varMap == mapVars.end()) {
+				LOG("Variable {} was not found in the map.", varName);
 				std::getline(dataFile, line);
 				continue;
 			}
@@ -69,7 +67,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 
 			if (varType == "Bool") {
 				if (!var.IsBool()) {
-					LOG("Variable " + varName + " is not a bool.");
+					LOG("Variable {} is not a bool.", varName);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -78,7 +76,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 			}
 			else if (varType == "Float") {
 				if (!var.IsFloat()) {
-					LOG("Variable " + varName + " is not a float.");
+					LOG("Variable {} is not a float.", varName);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -87,7 +85,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 			}
 			else if (varType == "Int") {
 				if (!var.IsInt()) {
-					LOG("Variable " + varName + " is not an int.");
+					LOG("Variable {} is not an int.", varName);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -96,7 +94,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 			}
 			else if (varType == "String") {
 				if (!var.IsString()) {
-					LOG("Variable " + varName + " is not a string.");
+					LOG("Variable {} is not a string.", varName);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -105,7 +103,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 			}
 			else if (varType == "Vector") {
 				if (!var.IsVector()) {
-					LOG("Variable " + varName + " is not a vector.");
+					LOG("Variable {} is not a vector.", varName);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -119,7 +117,7 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 				}
 
 				if (coordinates.size() != 3) {
-					LOG("Value for variable " + varName + " does not have 3 coordiantes. Value: " + varValue);
+					LOG("Value for variable {} does not have 3 coordiantes. Value: {}", varName, varValue);
 					std::getline(dataFile, line);
 					continue;
 				}
@@ -136,8 +134,8 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 	}
 	dataFile.close();
 
-	LOG("File " + params[0] + ".data has been loaded");
-	sequence.ActivateRemoteEvents("MEPDataLoaded");
+	LOG("File {}.data has been loaded", params[0]);
+	plugin->ActivateRemoteEvent("MEPDataLoaded");
 }
 
 void LoadDataCommand::NetcodeHandler(const std::vector<std::string>& params)

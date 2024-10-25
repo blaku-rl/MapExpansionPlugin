@@ -28,13 +28,9 @@ void SaveDataPrefixCommand::CommandFunction(const std::vector<std::string>& para
 
 	auto kismetVarPrefixes = Utils::SplitStringByChar(params[0], ',');
 
-	auto sequence = plugin->gameWrapper->GetMainSequence();
-	if (sequence.memory_address == NULL) return;
-	auto allVars = sequence.GetAllSequenceVariables(false);
-
 	std::ofstream dataFile(plugin->GetExpansionFolder() / (fileName + ".data"));
 	if (dataFile.is_open()) {
-		for (auto& [varName, varObj] : allVars) {
+		for (auto& [varName, varObj] : plugin->GetMapVariables()) {
 			auto containsPrefix = std::ranges::fold_left(kismetVarPrefixes, false, [varName](bool value, std::string prefix) 
 				{
 					return value or varName.starts_with(prefix); 
@@ -75,7 +71,7 @@ void SaveDataPrefixCommand::CommandFunction(const std::vector<std::string>& para
 	dataFile.close();
 
 	LOG("File {}.data has been saved", params[1]);
-	sequence.ActivateRemoteEvents("MEPDataSaved");
+	plugin->ActivateRemoteEvent("MEPDataSaved");
 }
 
 void SaveDataPrefixCommand::NetcodeHandler(const std::vector<std::string>& params)

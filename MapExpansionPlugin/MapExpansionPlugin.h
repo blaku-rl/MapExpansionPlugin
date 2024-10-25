@@ -35,6 +35,8 @@ class MapExpansionPlugin: public BasePlugin, public BakkesMod::Plugin::PluginSet
 	void AddKeyBind(const MapBind& bind) override;
 	void SendInfoToMap(const std::string& str) override;
 	std::filesystem::path GetExpansionFolder() const override;
+	std::map<std::string, SequenceVariableWrapper>& GetMapVariables() override;
+	void ActivateRemoteEvent(const std::string& eventName) const override;
 
 	// Key press and map binds
 	void OnKeyPressed(ActorWrapper aw, void* params, std::string eventName);
