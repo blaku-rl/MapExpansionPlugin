@@ -386,4 +386,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 .idea/
+
+# vcpkg
+vcpkg_installed/*
+vcpkg-configuration.json
 *.sln.iml
