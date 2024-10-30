@@ -25,6 +25,7 @@ void MapExpansionPlugin::onLoad()
 	customCommands.emplace_back("changestats", std::make_unique<ChangeStatsCommand>(this));
 	customCommands.emplace_back("gamestate", std::make_unique<GameStateCommand>(this));
 	customCommands.emplace_back("savedataprefix", std::make_unique<SaveDataPrefixCommand>(this));
+	customCommands.emplace_back("speedrun", std::make_unique<SRCCommand>(this));
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
@@ -152,11 +153,15 @@ void MapExpansionPlugin::AddKeyBind(const MapBind& bind)
 
 void MapExpansionPlugin::SendInfoToMap(const std::string& str)
 {
-	LOG("Setting mepoutput to {}", str);
+	if (str.size() > 100)
+		LOG("mepoutput is {} characters, showing first 100 here {}", std::to_string(str.size()), str.substr(0, 100));
+	else
+		LOG("Setting mepoutput to {}", str);
+
 	auto outVar = mapVariables.find("mepoutput");
 	if (outVar != mapVariables.end() and outVar->second.IsString())
 		outVar->second.SetString(str);
-	ActivateRemoteEvent("MEPOutput");
+	ActivateRemoteEvent("MEPOutputEvent");
 }
 
 std::filesystem::path MapExpansionPlugin::GetExpansionFolder() const
@@ -228,6 +233,7 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	if (isInMap) return;
 	if (!gameWrapper->GetGameEventAsServer()) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
+	mapVariables = sequence.GetAllSequenceVariables(false);
 	ActivateRemoteEvent("MEPLoaded");
 	LOG("Map Expansion Plugin Loaded");
 	isInMap = true;
