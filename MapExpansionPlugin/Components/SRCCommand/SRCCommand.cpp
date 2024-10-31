@@ -38,7 +38,7 @@ std::string SRCCommand::GetNetcodeIdentifier()
 	return "SR";
 }
 
-void SRCCommand::SendSRCRequestWithRetries(const CurlRequest& req, std::function<std::string(const std::string& data)> successFunc, const int& retries)
+void SRCCommand::SendSRCRequestWithRetries(const CurlRequest& req, std::function<std::string(std::string data)> successFunc, const int& retries)
 {
 	if (retries <= 0) {
 		plugin->SendInfoToMap("Max Retries Reached For Request");
@@ -77,7 +77,12 @@ void SRCCommand::SendRawSRCQuery(const std::vector<std::string>& params)
 	req.url = srcBaseUrl + params[1];
 	req.verb = "GET";
 
-	SendSRCRequestWithRetries(req, [](const std::string& str) {return str; });
+	SendSRCRequestWithRetries(req, [params](std::string data) {
+		if (data.empty())
+			return data;
+		data.insert(1, "\"source\":\"" + params[1] + "\",");
+		return data; 
+		});
 }
 
 void SRCCommand::SendFormattedRequest(const std::vector<std::string>& params)
@@ -96,7 +101,7 @@ void SRCCommand::SendFormattedRequest(const std::vector<std::string>& params)
 
 	const auto& [req, place] = BuildRequestFromInput(params);
 
-	SendSRCRequestWithRetries(req, [this, place](const std::string& data) {
+	SendSRCRequestWithRetries(req, [this, place](std::string data) {
 		return ParseFormattedRequest(data, place);
 		});
 }
@@ -110,7 +115,7 @@ void SRCCommand::FindSpecificInfo(const std::vector<std::string>& params, const 
 
 	const auto& [req, place] = BuildRequestFromInput(params);
 
-	SendSRCRequestWithRetries(req, [this, place, param](const std::string& data) {
+	SendSRCRequestWithRetries(req, [this, place, param](std::string data) {
 		auto parsedStr = ParseFormattedRequest(data, place);
 		auto values = ParseKeyValueString(parsedStr);
 		if (values.contains(param))

@@ -11,7 +11,7 @@ public:
 	void NetcodeHandler(const std::vector<std::string>& params) override;
 	std::string GetNetcodeIdentifier() override;
 private:
-	void SendSRCRequestWithRetries(const CurlRequest& req, std::function<std::string(const std::string& data)> successFunc, const int& retries = 5);
+	void SendSRCRequestWithRetries(const CurlRequest& req, std::function<std::string(std::string data)> successFunc, const int& retries = 5);
 	void SendRawSRCQuery(const std::vector<std::string>& params);
 	void SendFormattedRequest(const std::vector<std::string>& params);
 	void FindSpecificInfo(const std::vector<std::string>& params, const std::string& param);
