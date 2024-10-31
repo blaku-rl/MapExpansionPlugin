@@ -109,7 +109,7 @@ void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string 
 
 void MapExpansionPlugin::ParseCommands(const std::string& commands)
 {
-	LOG("Commands to exectue: '{}'", commands);
+	LOG("Commands to execute: '{}'", commands);
 	auto commandList = Utils::SplitStringByChar(commands, ';');
 	for (auto& command : commandList) {
 		auto splitCommand = Utils::SplitStringByChar(command, ' ');
