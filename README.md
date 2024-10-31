@@ -15,6 +15,7 @@ This plugin funtions by reading the contents of specifically named string kismet
 MEP is fairly simple to build, you'll just need a couple requirements.
 - [Visual Studio](https://visualstudio.microsoft.com/)
 - [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started-msbuild?pivots=shell-powershell) 
+
 Open the project in visual studio, make sure you are in release mode, and click build. If you have vcpkg setup, it should install nlohmann and link properly.
 
 ## Bakkes Mod Console Commands
