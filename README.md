@@ -11,6 +11,12 @@ This plugin is aimed at adding features for map makers by utilizing the power of
 ## How It Works
 This plugin funtions by reading the contents of specifically named string kismet variables. Those variables are: `bmcommand bmlog mepcommand`. Each one serves a different purpose as described below. To make use of them, set the value the string that you'd like to use. For example to use the ballontop command from bakkes mod, set the `bmcommand` string to: `ballontop`. Each physics tick, the plugin will read the values of each of the specified named kismet strings and will try to run their commands. After it has processed the command, the plugin will set the value of the string to an empty string. 
 
+## Building MEP
+MEP is fairly simple to build, you'll just need a couple requirements.
+- [Visual Studio](https://visualstudio.microsoft.com/)
+- [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started-msbuild?pivots=shell-powershell) 
+Open the project in visual studio, make sure you are in release mode, and click build. If you have vcpkg setup, it should install nlohmann and link properly.
+
 ## Bakkes Mod Console Commands
 To run console commands, make a string var called `bmcommand` and set the value to the command that you would like to run
 You can find the available console commands that can be run [here](https://bakkesmod.fandom.com/wiki/Category:Console_commands)
