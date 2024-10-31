@@ -23,10 +23,10 @@ void SRCCommand::CommandFunction(const std::vector<std::string>& params)
 		SendRawSRCQuery(params);
 	else if (params[0] == "getinfo")
 		SendFormattedRequest(params);
-	else if (params[0] == "getdate" or "gettime" or "getplayers")
+	else if (params[0] == "getdate" or params[0] == "gettime" or params[0] == "getplayers")
 		FindSpecificInfo(params, params[0].substr(3, std::string::npos));
 	else
-		plugin->SendInfoToMap("{} is not a valid option. Use get, getinfo, getdate, gettime, or getplayers");
+		plugin->SendInfoToMap(params[0] + " is not a valid option. Use get, getinfo, getdate, gettime, or getplayers");
 }
 
 void SRCCommand::NetcodeHandler(const std::vector<std::string>& params)
