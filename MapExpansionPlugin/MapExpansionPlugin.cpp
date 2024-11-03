@@ -153,7 +153,7 @@ void MapExpansionPlugin::AddKeyBind(const MapBind& bind)
 
 void MapExpansionPlugin::SendInfoToMap(const std::string& str)
 {
-	if (str.size() > 100)
+	if (str.size() > 2000)
 		LOG("mepoutput is {} characters, showing first 100 here {}", std::to_string(str.size()), str.substr(0, 100));
 	else
 		LOG("Setting mepoutput to {}", str);
@@ -244,6 +244,8 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 	inputBlocked = false;
 	isInMap = false;
 	mapBinds.clear();
+	for (auto& [id, command] : customCommands)
+		command->OnMapExit();
 }
 
 void MapExpansionPlugin::OnMessageRecieved(const std::string& Message, PriWrapper Sender)

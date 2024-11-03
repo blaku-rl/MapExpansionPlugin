@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include <cmath>
+#include <chrono>
 
 SRCCommand::SRCCommand(BasePlugin* plugin) : BaseCommand(plugin)
 {
@@ -25,12 +26,19 @@ void SRCCommand::CommandFunction(const std::vector<std::string>& params)
 		SendFormattedRequest(params);
 	else if (params[0] == "getdate" or params[0] == "gettime" or params[0] == "getplayers")
 		FindSpecificInfo(params, params[0].substr(3, std::string::npos));
+	else if (params[0] == "findmap")
+		SearchForMapByName(params);
 	else
 		plugin->SendInfoToMap(params[0] + " is not a valid option. Use get, getinfo, getdate, gettime, or getplayers");
 }
 
 void SRCCommand::NetcodeHandler(const std::vector<std::string>& params)
 {
+}
+
+void SRCCommand::OnMapExit()
+{
+	validRequests.clear();
 }
 
 std::string SRCCommand::GetNetcodeIdentifier()
@@ -45,12 +53,20 @@ void SRCCommand::SendSRCRequestWithRetries(const CurlRequest& req, std::function
 		return;
 	}
 
-	LOG("Sending request {}", req.url);
-	HttpWrapper::SendCurlJsonRequest(req, [this, req, retries, successFunc](int code, std::string data) {
-		plugin->gameWrapper->Execute([this, code, data, req, retries, successFunc](GameWrapper* gw) {
-			LOG("Request for {} has returned", req.url);
-			LOG("Response code from src: {}", std::to_string(code));
+	auto urlTimeStamp = req.url + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+	validRequests.insert(urlTimeStamp);
 
+	LOG("Sending request {}", req.url);
+	HttpWrapper::SendCurlJsonRequest(req, [this, req, retries, successFunc, urlTimeStamp](int code, std::string data) {
+		plugin->gameWrapper->Execute([this, code, data, req, retries, successFunc, urlTimeStamp](GameWrapper* gw) {
+			LOG("Request for {} has returned", req.url);
+			if (!validRequests.contains(urlTimeStamp)) {
+				LOG("We have left the map. Request will no longer be processed");
+				return;
+			}
+			validRequests.erase(urlTimeStamp);
+
+			LOG("Response code from src: {}", std::to_string(code));
 			if (code != 200) {
 				plugin->gameWrapper->SetTimeout([this, req, retries, successFunc](GameWrapper* gw) {
 					SendSRCRequestWithRetries(req, successFunc, retries - 1);
@@ -121,6 +137,48 @@ void SRCCommand::FindSpecificInfo(const std::vector<std::string>& params, const 
 		if (values.contains(param))
 			return values[param];
 		return param + " not found in the string " + parsedStr;
+		});
+}
+
+void SRCCommand::SearchForMapByName(const std::vector<std::string>& params)
+{
+	if (params.size() <= 1) {
+		LOG("Provide a map name to search for. Command should look like 'speedrun findmap \"My map name\"'.");
+		return;
+	}
+
+	auto mapName = std::ranges::fold_left(params.begin() + 1, params.end(), "", [](std::string acc, std::string part) {return acc + " " + part; });
+	mapName = mapName.substr(1, std::string::npos);
+	if (mapName.starts_with('"'))
+		mapName = mapName.substr(1, std::string::npos);
+	if (mapName.ends_with('"'))
+		mapName = mapName.substr(0, mapName.size() - 1);
+	Utils::TrimString(mapName);
+
+	CurlRequest req;
+	req.url = srcBaseUrl + "series/g7q25m57/games?max=200&embed=levels,categories,variables";
+	req.verb = "GET";
+
+	MapSearchRequest(req, mapName);
+}
+
+void SRCCommand::MapSearchRequest(const CurlRequest& req, const std::string& mapName)
+{
+	SendSRCRequestWithRetries(req, [this, mapName](std::string data) {
+		auto parsedResponse = ParseMapSearchResponse(data, mapName);
+		if (!parsedResponse.empty())
+			return parsedResponse;
+
+		auto pagination = ExtractPaginationLink(data);
+		if (!pagination.empty()) {
+			CurlRequest newReq;
+			newReq.url = pagination;
+			newReq.verb = "GET";
+			MapSearchRequest(newReq, mapName);
+			return std::string("Searching next 200 maps");
+		}
+
+		return "No map by the name " + mapName + " found";
 		});
 }
 
@@ -300,4 +358,120 @@ std::string SRCCommand::GetTimeStringFromFloat(const float& time)
 std::string SRCCommand::EnsureTwoWideNumber(const int& num)
 {
 	return (num < 10 ? "0" : "") + std::to_string(num);
+}
+
+std::string SRCCommand::ParseMapSearchResponse(const std::string& data, const std::string& mapName)
+{
+	nlohmann::json js = nlohmann::json::parse(data);
+	std::stringstream ss;
+	LOG("Searching for a match on {}", mapName);
+
+	auto& fullData = js["data"];
+	if (!fullData.is_array())
+		return "";
+
+	for (auto& gameObj : fullData) {
+		auto& nameContainer = gameObj["names"]["international"];
+		if (!nameContainer.is_string())
+			continue;
+
+		auto name = nameContainer.template get<std::string>();
+		Utils::TrimString(name);
+
+		if (name != mapName)
+			continue;
+
+		if (!gameObj["id"].is_string())
+			return "";
+		auto gameId = gameObj["id"].template get<std::string>();
+
+		LOG("Found a match {}", gameId);
+		ss << "{\n";
+		ss << "  \"gameid\": \"" << gameId << "\",\n";
+		ss << "  \"name\": \"" << mapName << "\",\n";
+
+		auto& categories = gameObj["categories"]["data"];
+		if (!categories.is_array())
+			return "";
+
+		ss << "  \"categories\": [\n";
+		for (auto& cat : categories) {
+			if (!cat["id"].is_string() or !cat["name"].is_string())
+				return "";
+
+			ss << "    {\n";
+			ss << "      \"name\": \"" << cat["name"].template get<std::string>() << "\",\n";
+			ss << "      \"id\": \"" << cat["id"].template get<std::string>() << "\",\n";
+			ss << "    },\n";
+		}
+		ss << "  ],\n";
+
+		auto& levels = gameObj["levels"]["data"];
+		if (!levels.is_array())
+			return "";
+
+		ss << "  \"levels\": [\n";
+		for (auto& level : levels) {
+			if (!level["id"].is_string() or !level["name"].is_string())
+				return "";
+
+			ss << "    {\n";
+			ss << "      \"name\": \"" << level["name"].template get<std::string>() << "\",\n";
+			ss << "      \"id\": \"" << level["id"].template get<std::string>() << "\",\n";
+			ss << "    },\n";
+		}
+		ss << "  ],\n";
+
+		auto& variables = gameObj["variables"]["data"];
+		if (!variables.is_array())
+			return "";
+
+		ss << "  \"variables\": [\n";
+		for (auto& var : variables) {
+			if (!var["id"].is_string() or !var["name"].is_string())
+				return "";
+			auto cat = var["category"].is_string() ? var["category"].template get<std::string>() : "none";
+
+			ss << "    {\n";
+			ss << "      \"name\": \"" << var["name"].template get<std::string>() << "\",\n";
+			ss << "      \"id\": \"" << var["id"].template get<std::string>() << "\",\n";
+			ss << "      \"category\": \"" << cat << "\",\n";
+
+			ss << "      \"values\": [\n";
+			for (auto& [key, value] : var["values"]["values"].items()) {
+				LOG("key is {}", key);
+				if (!value["label"].is_string())
+					return "";
+
+				ss << "        {\n";
+				ss << "          \"name\": \"" << value["label"].template get<std::string>() << "\",\n";
+				ss << "          \"id\": \"" << key << "\",\n";
+				ss << "        },\n";
+			}
+			ss << "    },\n";
+		}
+		ss << "  ],\n";
+		ss << "}";
+		return ss.str();
+	}
+
+	return "";
+}
+
+std::string SRCCommand::ExtractPaginationLink(const std::string& data)
+{
+	nlohmann::json js = nlohmann::json::parse(data);
+
+	auto& linksArr = js["pagination"]["links"];
+	if (!linksArr.is_array())
+		return "";
+
+	for (auto& linkObj : linksArr) {
+		if (!linkObj["rel"].is_string() or !linkObj["uri"].is_string())
+			continue;
+		if (linkObj["rel"].template get<std::string>() == "next")
+			return linkObj["uri"].template get<std::string>();
+	}
+
+	return "";
 }
