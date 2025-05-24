@@ -15,6 +15,11 @@ std::vector<std::string> Utils::SplitStringByChar(const std::string& str, const 
 	return splitString;
 }
 
+std::string Utils::ConcatVectorByDelim(const std::span<const std::string>& vec, const char& sep)
+{
+	return std::ranges::fold_left(vec, "", [sep](std::string acc, std::string part) {return acc + sep + part; });
+}
+
 bool Utils::IsNumeric(const std::string& str)
 {
 	return str.find_first_not_of("0123456789") == std::string::npos;

@@ -108,6 +108,9 @@
     <ClCompile Include="Components\SRCCommand\SRCCommand.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Components\AnalyticsCommand\AnalyticsCommand.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapExpansionPlugin.h">
@@ -213,6 +216,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Components\SRCCommand\SRCCommand.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\AnalyticsCommand\AnalyticsCommand.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\uuid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

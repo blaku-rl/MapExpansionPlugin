@@ -26,6 +26,7 @@ void MapExpansionPlugin::onLoad()
 	customCommands.emplace_back("gamestate", std::make_unique<GameStateCommand>(this));
 	customCommands.emplace_back("savedataprefix", std::make_unique<SaveDataPrefixCommand>(this));
 	customCommands.emplace_back("speedrun", std::make_unique<SRCCommand>(this));
+	customCommands.emplace_back("analytics", std::make_unique<AnalyticsCommand>(this));
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
@@ -65,13 +66,15 @@ void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
 		LOG("Map Expansion setup complete");
 
 		//Check for var incase plugin is loaded while in a map
-		MapPluginVarCheck("");
+		gameWrapper->Execute([this](GameWrapper*) {
+			MapPluginVarCheck("");
+			});
 	}
 }
 
 void MapExpansionPlugin::OnPhysicsTick(CarWrapper cw, void* params, std::string eventName)
 {
-	if (!isInMap) return;
+	if (!isInMap) { return; }
 	if (!gameWrapper->GetGameEventAsServer() or !isSetupComplete) { return; }
 
 	//maybe remove for multiplayer input controls
@@ -180,6 +183,11 @@ void MapExpansionPlugin::ActivateRemoteEvent(const std::string& eventName) const
 	if (sequence.memory_address == NULL) return;
 	LOG("Activating remote event '{}'", eventName);
 	sequence.ActivateRemoteEvents(eventName);
+}
+
+constexpr const char* MapExpansionPlugin::GetPluginVersion() const
+{
+	return plugin_version;
 }
 
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)

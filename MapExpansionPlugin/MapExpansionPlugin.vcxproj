@@ -94,6 +94,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Components\AnalyticsCommand\AnalyticsCommand.cpp" />
     <ClCompile Include="Components\BaseCommand.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -152,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\AllCommandsInclude.h" />
+    <ClInclude Include="Components\AnalyticsCommand\AnalyticsCommand.h" />
     <ClInclude Include="Components\BaseCommand.h" />
     <ClInclude Include="BasePlugin.h" />
     <ClInclude Include="Components\ChangeScoreCommand\ChangeScoreCommand.h" />
@@ -163,6 +165,7 @@
     <ClInclude Include="Components\SaveDataCommand\SaveDataCommand.h" />
     <ClInclude Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.h" />
     <ClInclude Include="Components\SRCCommand\SRCCommand.h" />
+    <ClInclude Include="Includes\uuid.h" />
     <ClInclude Include="Utility\Constants.h" />
     <ClInclude Include="Utility\KismetIncludes.h" />
     <ClInclude Include="Utility\Utils.h" />

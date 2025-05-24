@@ -10,3 +10,4 @@
 #include "GameStateCommand/GameStateCommand.h"
 #include "SaveDataPrefixCommand/SaveDataPrefixCommand.h"
 #include "SRCCommand/SRCCommand.h"
+#include "AnalyticsCommand/AnalyticsCommand.h"

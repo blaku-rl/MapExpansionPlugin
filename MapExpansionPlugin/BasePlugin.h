@@ -20,4 +20,5 @@ public:
 	virtual std::filesystem::path GetExpansionFolder() const = 0;
 	virtual std::map<std::string, SequenceVariableWrapper>& GetMapVariables() = 0;
 	virtual void ActivateRemoteEvent(const std::string& eventName) const = 0;
+	virtual constexpr const char* GetPluginVersion() const = 0;
 };
