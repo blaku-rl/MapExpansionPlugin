@@ -138,7 +138,7 @@ void AnalyticsCommand::SendAnalyticsRequest(const std::string& endpoint, const s
 	req.verb = "POST";
 	req.headers = {};
 	req.headers["Content-Type"] = "application/json";
-	req.headers["User-Agent"] = "MEP (" + std::string(plugin->GetPluginVersion()) + "";
+	req.headers["User-Agent"] = "MEP (" + std::string(plugin->GetPluginVersion()) + ")";
 	req.body = params;
 
 	LOG("Sending request to {}", req.url);
