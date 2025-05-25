@@ -50,7 +50,7 @@ void ChangeStatsCommand::NetcodeHandler(const std::vector<std::string>& params)
 	if (params.size() != 4) return;
 	int modAmount = std::stoi(params[2]);
 	modAmount = modAmount * (params[1] == "add" ? 1 : -1);
-	int playerId = std::stoi(params[1]);
+	int playerId = std::stoi(params[3]);
 	std::string statType = params[0];
 
 	auto server = plugin->gameWrapper->GetCurrentGameState();

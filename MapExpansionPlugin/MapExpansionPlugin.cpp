@@ -46,6 +46,9 @@ void MapExpansionPlugin::onUnload()
 	if (setupThread.joinable()) {
 		setupThread.join();
 	}
+	
+	for (auto& [id, command] : customCommands)
+		command->OnMapExit(false);
 }
 
 void MapExpansionPlugin::SetUpKeysMap()
@@ -63,10 +66,10 @@ void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
 	if (isSetupComplete && setupThread.joinable()) {
 		setupThread.join();
 		gameWrapper->UnhookEventPost("Function Engine.GameViewportClient.Tick");
-		LOG("Map Expansion setup complete");
 
 		//Check for var incase plugin is loaded while in a map
 		gameWrapper->Execute([this](GameWrapper*) {
+			LOG("Map Expansion setup complete");
 			MapPluginVarCheck("");
 			});
 	}
@@ -156,6 +159,8 @@ void MapExpansionPlugin::AddKeyBind(const MapBind& bind)
 
 void MapExpansionPlugin::SendInfoToMap(const std::string& str)
 {
+	if (!isInMap) return;
+
 	if (str.size() > 2000)
 		LOG("mepoutput is {} characters, showing first 100 here {}", std::to_string(str.size()), str.substr(0, 100));
 	else
@@ -241,6 +246,7 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	if (isInMap) return;
 	if (!gameWrapper->GetGameEventAsServer()) { return; }
 	auto sequence = gameWrapper->GetMainSequence();
+	if (sequence.memory_address == NULL) return;
 	mapVariables = sequence.GetAllSequenceVariables(false);
 	ActivateRemoteEvent("MEPLoaded");
 	LOG("Map Expansion Plugin Loaded");
@@ -252,6 +258,7 @@ void MapExpansionPlugin::MapUnload(std::string eventName)
 	inputBlocked = false;
 	isInMap = false;
 	mapBinds.clear();
+	mapVariables = {};
 	for (auto& [id, command] : customCommands)
 		command->OnMapExit();
 }

@@ -36,7 +36,7 @@ void SRCCommand::NetcodeHandler(const std::vector<std::string>& params)
 {
 }
 
-void SRCCommand::OnMapExit()
+void SRCCommand::OnMapExit(const bool& wait)
 {
 	validRequests.clear();
 }

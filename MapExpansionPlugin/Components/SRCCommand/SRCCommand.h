@@ -11,7 +11,7 @@ public:
 	explicit SRCCommand(BasePlugin* plugin);
 	void CommandFunction(const std::vector<std::string>& params) override;
 	void NetcodeHandler(const std::vector<std::string>& params) override;
-	void OnMapExit() override;
+	void OnMapExit(const bool& wait) override;
 	std::string GetNetcodeIdentifier() override;
 private:
 	void SendSRCRequestWithRetries(const CurlRequest& req, std::function<std::string(std::string data)> successFunc, const int& retries = 5);

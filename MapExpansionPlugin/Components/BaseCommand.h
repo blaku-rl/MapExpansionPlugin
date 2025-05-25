@@ -11,6 +11,6 @@ public:
 	explicit BaseCommand(BasePlugin* plugin);
 	virtual void CommandFunction(const std::vector<std::string>& params) = 0;
 	virtual void NetcodeHandler(const std::vector<std::string>& params) = 0;
-	virtual void OnMapExit() {};
+	virtual void OnMapExit(const bool& wait = true) {};
 	virtual std::string GetNetcodeIdentifier() = 0;
 };
