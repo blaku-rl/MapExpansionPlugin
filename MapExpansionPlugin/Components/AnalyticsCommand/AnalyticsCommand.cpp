@@ -369,7 +369,7 @@ void AnalyticsCommand::StartEventDebounce()
 			}
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		} while (loops < 600);
+		} while (loops < 100);
 
 		threadState = EventThreadState::STOPPED;
 
