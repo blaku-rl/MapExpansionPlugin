@@ -51,6 +51,6 @@ std::string& Utils::TrimString(std::string& str, const std::string& whitespace)
 
 std::string Utils::GetCurrentUTCTimeStamp()
 {
-	const auto now = std::chrono::utc_clock::now();
+	const auto now = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::utc_clock::now());
 	return std::format("{:%F %T}", now);
 }
