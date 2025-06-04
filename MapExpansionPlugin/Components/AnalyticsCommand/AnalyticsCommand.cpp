@@ -2,10 +2,13 @@
 #include "AnalyticsCommand.h"
 #include "../../Utility/Utils.h"
 #include <stdexcept>
+#include <chrono>
 
 AnalyticsCommand::AnalyticsCommand(BasePlugin* plugin) : BaseCommand(plugin)
 {
-	
+	threadState = EventThreadState::STOPPED;
+	processingRequest = false;
+	eventList = {};
 }
 
 void AnalyticsCommand::CommandFunction(const std::vector<std::string>& params)
@@ -32,12 +35,18 @@ void AnalyticsCommand::NetcodeHandler(const std::vector<std::string>& params)
 {
 }
 
-void AnalyticsCommand::OnMapExit(const bool& wait)
+void AnalyticsCommand::OnMapExit()
 {
-	//If we send a request when the plugin is unloading and we are in a session, the return will crash the game
-	//Let the session auto expire on the website in this case
-	if (!wait) return;
 	EndSession();
+}
+
+void AnalyticsCommand::OnPluginUnload()
+{
+	if (IsSessionActive())
+		EndSession();
+
+	//wait until all requests are done
+	while (processingRequest) {}
 }
 
 std::string AnalyticsCommand::GetNetcodeIdentifier()
@@ -96,15 +105,24 @@ void AnalyticsCommand::TrackEventCommand(const std::vector<std::string>& params)
 		LOG("Error parsing json param: {}", e.what());
 		return;
 	}
-	
-	if (j.contains("events") and j["events"].is_array()) {
-		for (int i = 0; i < j["events"].size(); ++i) {
-			j["events"].at(i)["user_id"] = playerId;
-			j["events"].at(i)["user_platform"] = platformStr;
-		}
+
+	if (!j.contains("name") or !j.contains("params")) {
+		LOG("The name and params properties must be set in the passed object");
+		return;
 	}
-	
-	SendAnalyticsRequest("/" + sessionId + "/events", j);
+
+	j["player_id"] = playerId;
+	j["params"]["player_platform"] = platformStr;
+	j["timestamp"] = Utils::GetCurrentUTCTimeStamp();
+
+	StartOrRestartEventDebounce();
+
+	{
+		std::lock_guard<std::mutex> guard(eventsMutex);
+		eventList.push_back(j);
+	}
+
+	LOG("Event {} added to event queue", j.dump());
 }
 
 void AnalyticsCommand::TrackEndCommand(const std::vector<std::string>& params)
@@ -137,75 +155,65 @@ void AnalyticsCommand::StartSession(const std::string& projId, const std::string
 	apiKey = apiId;
 	projectId = projId;
 
-	nlohmann::json j = {
+	AnalyticsAPIRequestItem item;
+	item.sentSessionId = sessionId;
+	item.sentAPIKey = apiKey;
+	item.sentProjectId = projId;
+	item.endpoint = "";
+
+	item.param = {
 		{"id", sessionId},
 		{"params", {
-			{"user_id", playerId},
-			{"user_platform", platformStr}
+			{"player_id", playerId},
+			{"player_platform", platformStr}
 		}}
 	};
+
+	item.successFunc = [this, item](std::string) {
+		LOG("Session {} created successfully", item.sentSessionId);
+		plugin->SendInfoToMap("Analytics session started");
+		};
+
+	item.errorFunc = [this]() {
+		LOG("Unsetting session as one was not succesfully made");
+		sessionId = "";
+		apiKey = "";
+		projectId = "";
+		};
 	
-	SendAnalyticsRequest("", j);
+	AddRequestToQueue(item);
 }
 
 void AnalyticsCommand::EndSession()
 {
 	if (!IsSessionActive()) return;
-	
-	SendAnalyticsRequest("/" + sessionId + "/expire", "");
 
-	sessionId = "";
-	projectId = "";
-	apiKey = "";
-}
+	AnalyticsAPIRequestItem item;
+	item.sentSessionId = sessionId;
+	item.sentAPIKey = apiKey;
+	item.sentProjectId = projectId;
+	item.endpoint = "/" + sessionId + "/expire";
+	item.param = "";
 
-void AnalyticsCommand::SendAnalyticsRequest(const std::string& endpoint, const nlohmann::json& params)
-{
-	CurlRequest req;
-	req.url = apiBase + projectId + "/sdk/sessions" + endpoint;
-	req.verb = "POST";
-	req.headers = {};
-	req.headers["Content-Type"] = "application/json";
-	req.headers["User-Agent"] = "MEP (" + std::string(plugin->GetPluginVersion()) + ")";
-	req.headers["Authorization"] = "Bearer " + apiKey;
-	req.body = params.dump();
+	item.successFunc = [this, item](std::string) {
+		LOG("Session {} ended successfully", item.sentSessionId);
+		plugin->SendInfoToMap("Analytics session stopped");
+		};
 
-	LOG("Sending request to {} with body {}", req.url, req.body);
+	eventsMutex.lock();
+	float timeoutReq = 0.0f;
+	if (eventList.size() > 0) {
+		StopEventDebounce();
+		timeoutReq = 0.1f;
+	}
 
-	std::string sentSessionId = sessionId;
-	HttpWrapper::SendCurlJsonRequest(req, [this, params, sentSessionId](int code, std::string data) mutable {
-		plugin->gameWrapper->Execute([this, params, sentSessionId, code, data](GameWrapper*) mutable {
-			if (code == 204) {
-				LOG("Session {} ended successfully", sentSessionId);
-				plugin->SendInfoToMap("Analytics session stopped");
-				return;
-			}
-
-			bool isCreateReq = params.contains("id") and params["id"].is_string() and params["id"] == sessionId;;
-
-			if (code == 201) {
-				if (isCreateReq) {
-					LOG("Session {} created successfully", sentSessionId);
-					plugin->SendInfoToMap("Analytics session started");
-				}
-				else {
-					LOG("Events for {} sent successfully", sentSessionId);
-					plugin->SendInfoToMap("Analytics event tracked");
-				}
-				return;
-			}
-
-			LOG("Error code {} with message {}", std::to_string(code), data);
-			plugin->SendInfoToMap("Analytics error");
-
-			if (isCreateReq) {
-				LOG("Unsetting session as one was not succesfully made");
-				sessionId = "";
-				apiKey = "";
-				projectId = "";
-			}
-			});
-		});
+	plugin->gameWrapper->SetTimeout([this, item](GameWrapper*) {
+		AddRequestToQueue(item);
+		sessionId = "";
+		projectId = "";
+		apiKey = "";
+		}, timeoutReq);
+	eventsMutex.unlock();
 }
 
 std::string AnalyticsCommand::GenUUID() const
@@ -255,4 +263,153 @@ std::pair<std::string, std::string> AnalyticsCommand::GetUserInfo() const
 bool AnalyticsCommand::IsSessionActive() inline const
 {
 	return sessionId != "";
+}
+
+void AnalyticsCommand::AddRequestToQueue(AnalyticsAPIRequestItem item)
+{
+	requestMutex.lock();
+	requestQueue.push(item);
+	requestMutex.unlock();
+
+	if (processingRequest) return;
+
+	
+	ProcessNextRequest();
+}
+
+void AnalyticsCommand::ProcessNextRequest()
+{
+	requestMutex.lock();
+	if (processingRequest) {
+		requestQueue.pop();
+	}
+
+	if (requestQueue.size() <= 0) {
+		processingRequest = false;
+		requestMutex.unlock();
+		return;
+	}
+
+	processingRequest = true;
+	SendAnalyticsRequest(requestQueue.front());
+	requestMutex.unlock();
+}
+
+void AnalyticsCommand::SendAnalyticsRequest(const AnalyticsAPIRequestItem& item)
+{
+	CurlRequest req;
+	req.url = apiBase + item.sentProjectId + "/sdk/sessions" + item.endpoint;
+	req.verb = "POST";
+	req.headers = {};
+	req.headers["Content-Type"] = "application/json";
+	req.headers["User-Agent"] = "MEP (" + std::string(plugin->GetPluginVersion()) + ")";
+	req.headers["Authorization"] = "Bearer " + item.sentAPIKey;
+	req.body = item.param.dump();
+
+	LOG("Sending request to {} with body {}", req.url, req.body);
+
+	HttpWrapper::SendCurlJsonRequest(req, [this, &item](int code, std::string data) mutable {
+		plugin->gameWrapper->Execute([this, code, data, &item](GameWrapper*) mutable {
+			if (200 <= code and code < 300) {
+				item.successFunc(data);
+			}
+			else {
+				LOG("Error code {} with message {}", std::to_string(code), data);
+				plugin->SendInfoToMap("Analytics error");
+
+				if (item.errorFunc)
+					item.errorFunc();
+			}
+
+			plugin->gameWrapper->Execute([this](GameWrapper*) {
+				ProcessNextRequest();
+				});
+			});
+		});
+}
+
+void AnalyticsCommand::StartOrRestartEventDebounce()
+{
+	if (threadState == EventThreadState::STOPPED) {
+		StartEventDebounce();
+	}
+	else {
+		threadState = EventThreadState::RESTARTING;
+	}
+}
+
+void AnalyticsCommand::StopEventDebounce()
+{
+	if (threadState == EventThreadState::STOPPED) return;
+
+	threadState = EventThreadState::STOPPING;
+
+	plugin->gameWrapper->SetTimeout([this](GameWrapper*) {
+		if (eventDebounce.joinable()) {
+			eventDebounce.join();
+		}
+		}, 0.05f);
+}
+
+void AnalyticsCommand::StartEventDebounce()
+{
+	if (threadState != EventThreadState::STOPPED) return;
+
+	eventDebounce = std::thread([this]() {
+		threadState = EventThreadState::RUNNING;
+		int loops = 0;
+		do {
+			loops++;
+			if (threadState == EventThreadState::STOPPING)
+				break;
+				
+			if (threadState == EventThreadState::RESTARTING) {
+				threadState = EventThreadState::RUNNING;
+				loops = 0;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		} while (loops < 600);
+
+		threadState = EventThreadState::STOPPED;
+
+		plugin->gameWrapper->Execute([this](GameWrapper*) {
+			OnEventDebounceEnd();
+			});
+		});
+}
+
+void AnalyticsCommand::OnEventDebounceEnd()
+{
+	eventsMutex.lock();
+
+	if (eventList.size() <= 0) {
+		eventsMutex.unlock();
+		return;
+	}
+
+	nlohmann::json eventsArray = nlohmann::json::array();
+	for (auto j : eventList) {
+		eventsArray.push_back(j);
+	}
+
+	nlohmann::json eventsObj;
+	eventsObj["events"] = eventsArray;
+
+	AnalyticsAPIRequestItem item;
+	item.sentSessionId = sessionId;
+	item.sentAPIKey = apiKey;
+	item.sentProjectId = projectId;
+	item.endpoint = "/" + sessionId + "/events";
+	item.param = eventsObj;
+
+	item.successFunc = [this, item](std::string) {
+		LOG("Events for {} sent successfully", item.sentSessionId);
+		plugin->SendInfoToMap("Analytics event tracked");
+		};
+
+	AddRequestToQueue(item);
+
+	eventList.clear();
+	eventsMutex.unlock();
 }

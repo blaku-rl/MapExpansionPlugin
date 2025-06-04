@@ -7,7 +7,7 @@
 #include <bakkesmod/wrappers/kismet/SequenceOpWrapper.h>
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
 
-BAKKESMOD_PLUGIN(MapExpansionPlugin, "Map Expansion Plugin", plugin_version, PLUGINTYPE_FREEPLAY)
+BAKKESMOD_PLUGIN(MapExpansionPlugin, "Map Expansion Plugin", plugin_version, PLUGINTYPE_THREADEDUNLOAD)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
@@ -48,7 +48,7 @@ void MapExpansionPlugin::onUnload()
 	}
 	
 	for (auto& [id, command] : customCommands)
-		command->OnMapExit(false);
+		command->OnPluginUnload();
 }
 
 void MapExpansionPlugin::SetUpKeysMap()

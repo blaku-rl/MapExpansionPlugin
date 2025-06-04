@@ -2,6 +2,8 @@
 #include "Utils.h"
 #include <sstream>
 #include <algorithm>
+#include <chrono>
+#include <format>
 
 std::vector<std::string> Utils::SplitStringByChar(const std::string& str, const char& sep)
 {
@@ -45,4 +47,10 @@ static std::string& rtrim(std::string& str, std::string const& whitespace = " \r
 std::string& Utils::TrimString(std::string& str, const std::string& whitespace)
 {
 	return ltrim(rtrim(str, whitespace), whitespace);
+}
+
+std::string Utils::GetCurrentUTCTimeStamp()
+{
+	const auto now = std::chrono::utc_clock::now();
+	return std::format("{:%F %T}", now);
 }
