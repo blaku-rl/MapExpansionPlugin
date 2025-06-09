@@ -96,6 +96,8 @@ void AnalyticsCommand::TrackEventCommand(const std::vector<std::string>& params)
 		return;
 	}
 
+	LOG("Third");
+
 	nlohmann::json j;
 
 	try {
@@ -115,12 +117,13 @@ void AnalyticsCommand::TrackEventCommand(const std::vector<std::string>& params)
 	j["params"]["player_platform"] = platformStr;
 	j["timestamp"] = Utils::GetCurrentUTCTimeStamp();
 
+	
+
 	StartOrRestartEventDebounce();
 
-	{
-		std::lock_guard<std::mutex> guard(eventsMutex);
-		eventList.push_back(j);
-	}
+	eventsMutex.lock();
+	eventList.push_back(j);
+	eventsMutex.unlock();
 
 	LOG("Event {} added to event queue", j.dump());
 }
@@ -343,12 +346,6 @@ void AnalyticsCommand::StopEventDebounce()
 	if (threadState == EventThreadState::STOPPED) return;
 
 	threadState = EventThreadState::STOPPING;
-
-	plugin->gameWrapper->SetTimeout([this](GameWrapper*) {
-		if (eventDebounce.joinable()) {
-			eventDebounce.join();
-		}
-		}, 0.05f);
 }
 
 void AnalyticsCommand::StartEventDebounce()
@@ -374,9 +371,17 @@ void AnalyticsCommand::StartEventDebounce()
 		threadState = EventThreadState::STOPPED;
 
 		plugin->gameWrapper->Execute([this](GameWrapper*) {
-			OnEventDebounceEnd();
+			EndDebounceThread();
 			});
 		});
+}
+
+void AnalyticsCommand::EndDebounceThread()
+{
+	if (eventDebounce.joinable())
+		eventDebounce.join();
+
+	OnEventDebounceEnd();
 }
 
 void AnalyticsCommand::OnEventDebounceEnd()

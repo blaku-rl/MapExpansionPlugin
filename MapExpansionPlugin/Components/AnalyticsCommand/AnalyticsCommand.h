@@ -62,5 +62,6 @@ private:
 	void StartOrRestartEventDebounce();
 	void StopEventDebounce();
 	void StartEventDebounce();
+	void EndDebounceThread();
 	void OnEventDebounceEnd();
 };
