@@ -15,9 +15,11 @@
 #include "fmt/ranges.h"
 
 extern std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
+extern bool loggingIsAllowed;
 
 template<typename S, typename... Args>
 void LOG(const S& format_str, Args&&... args)
 {
+	if (!loggingIsAllowed) return;
 	_globalCvarManager->log(fmt::format(format_str, args...));
 }

@@ -11,3 +11,4 @@
 #include "SaveDataPrefixCommand/SaveDataPrefixCommand.h"
 #include "SRCCommand/SRCCommand.h"
 #include "AnalyticsCommand/AnalyticsCommand.h"
+#include "GameTimeCommand/GameTimeCommand.h"

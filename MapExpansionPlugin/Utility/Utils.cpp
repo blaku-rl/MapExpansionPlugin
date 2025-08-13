@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Utils.h"
+#include "../../Includes/uuid.h"
 #include <sstream>
 #include <algorithm>
 #include <chrono>
@@ -53,4 +54,17 @@ std::string Utils::GetCurrentUTCTimeStamp()
 {
 	const auto now = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::utc_clock::now());
 	return std::format("{:%F %T}", now);
+}
+
+std::string Utils::GenUUID()
+{
+	std::random_device rd;
+	auto threadIdHash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+	uint64_t mixedSeed = static_cast<uint64_t>(rd()) ^ static_cast<uint64_t>(threadIdHash);
+
+	std::mt19937 generator(static_cast<unsigned int>(mixedSeed));
+	auto uuidGenerator = std::make_unique<uuids::uuid_random_generator>(generator);
+	auto& gen = *uuidGenerator.get();
+
+	return uuids::to_string(gen());
 }

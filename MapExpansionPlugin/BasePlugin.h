@@ -7,6 +7,7 @@
 #include <memory>
 #include <filesystem>
 #include <bakkesmod/wrappers/kismet/SequenceVariableWrapper.h>
+#include "MEPSettings.h"
 
 class BasePlugin : public BakkesMod::Plugin::BakkesModPlugin
 {
@@ -21,4 +22,5 @@ public:
 	virtual std::map<std::string, SequenceVariableWrapper>& GetMapVariables() = 0;
 	virtual void ActivateRemoteEvent(const std::string& eventName) const = 0;
 	virtual constexpr const char* GetPluginVersion() const = 0;
+	virtual MEPSettings GetPluginSettings() const = 0;
 };

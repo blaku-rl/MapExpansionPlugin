@@ -6,10 +6,12 @@
 #include <bakkesmod/wrappers/kismet/SequenceVariableWrapper.h>
 #include <bakkesmod/wrappers/kismet/SequenceOpWrapper.h>
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
+#include <fstream>
 
 BAKKESMOD_PLUGIN(MapExpansionPlugin, "Map Expansion Plugin", plugin_version, PLUGINTYPE_THREADEDUNLOAD)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
+bool loggingIsAllowed;
 
 void MapExpansionPlugin::onLoad()
 {
@@ -27,6 +29,7 @@ void MapExpansionPlugin::onLoad()
 	customCommands.emplace_back("savedataprefix", std::make_unique<SaveDataPrefixCommand>(this));
 	customCommands.emplace_back("speedrun", std::make_unique<SRCCommand>(this));
 	customCommands.emplace_back("analytics", std::make_unique<AnalyticsCommand>(this));
+	customCommands.emplace_back("gametime", std::make_unique<GameTimeCommand>(this));
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
 	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
@@ -39,6 +42,26 @@ void MapExpansionPlugin::onLoad()
 	//Ensure netcode is installed
 	Netcode = std::make_shared<NetcodeManager>(cvarManager, gameWrapper, exports,
 		std::bind(&MapExpansionPlugin::OnMessageRecieved, this, _1, _2));
+
+	//Default values
+	if (!std::filesystem::exists(settingsFile)) {
+		mepSettings.analyticsAllowed = true;
+		mepSettings.analyticsMessageShown = false;
+		mepSettings.loggingAllowed = true;
+	}
+	else {
+		LoadSettings();
+	}
+
+	loggingIsAllowed = mepSettings.loggingAllowed;
+
+	if (!mepSettings.analyticsMessageShown) {
+		gameWrapper->SetTimeout([this](GameWrapper*) {
+			std::string message = "Map makers can now collect analytics. See MEP Settings for details.";
+			gameWrapper->Toast("MEP Update", message, "default", 10.0f);
+			cvarManager->log(message);
+			}, 5.0f);
+	}
 }
 
 void MapExpansionPlugin::onUnload()
@@ -195,6 +218,36 @@ constexpr const char* MapExpansionPlugin::GetPluginVersion() const
 	return plugin_version;
 }
 
+MEPSettings MapExpansionPlugin::GetPluginSettings() const
+{
+	return mepSettings;
+}
+
+void MapExpansionPlugin::LoadSettings()
+{
+	if (!std::filesystem::exists(settingsFile)) {
+		return;
+	}
+
+	auto dataIn = std::ifstream(settingsFile);
+	nlohmann::json j;
+	if (dataIn.is_open()) {
+		dataIn >> j;
+	}
+	dataIn.close();
+	mepSettings = j.get<MEPSettings>();
+}
+
+void MapExpansionPlugin::SaveSettings() const
+{
+	nlohmann::json j = mepSettings;
+	auto out = std::ofstream(settingsFile);
+	if (out.is_open()) {
+		out << j.dump();
+	}
+	out.close();
+}
+
 void MapExpansionPlugin::OnKeyPressed(ActorWrapper aw, void* params, std::string eventName)
 {
 	KeyPressParams* keyPressData = (KeyPressParams*)params;
@@ -293,6 +346,36 @@ void MapExpansionPlugin::RenderSettings()
 	else {
 		ImGui::TextUnformatted("The Map Expansion Plugin is designed for map makers to leverage bakkesmod with their maps");
 		ImGui::TextUnformatted("Usage Details can be found here: https://github.com/blaku-rl/MapExpansionPlugin");
+		ImGui::Separator();
+		ImGui::TextUnformatted("MEP Settings");
+		if (ImGui::Checkbox("Plugin Logging Allowed", &mepSettings.loggingAllowed)) {
+			SaveSettings();
+			loggingIsAllowed = mepSettings.loggingAllowed;
+			//maybe notify a map of the change?
+		}
+		if (ImGui::Checkbox("Analytics Usage Allowed", &mepSettings.analyticsAllowed)) {
+			SaveSettings();
+		}
+
+		static bool popupShown = false;
+		if (!mepSettings.analyticsMessageShown && !popupShown) {
+			ImGui::OpenPopup("New Analytics Feature");
+		}
+		popupShown = true;
+	}
+
+	if (ImGui::BeginPopupModal("New Analytics Feature", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextUnformatted("With this new MEP update, map makers can collect various kinds of data on their maps, such as time taken on levels and best times.");
+		ImGui::TextUnformatted("The plugin passes along your epic/steam ID to the API for tracking individual players.");
+		ImGui::TextUnformatted("You can opt out of this at anytime by disabling the 'Analytics Usage Allowed' checkbox in the settings page.");
+
+		if (ImGui::Button("Aye Aye Captain", ImVec2(120, 0))) {
+			mepSettings.analyticsMessageShown = true;
+			SaveSettings();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
 	}
 }
 

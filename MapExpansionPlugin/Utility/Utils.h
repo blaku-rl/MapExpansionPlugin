@@ -10,4 +10,5 @@ namespace Utils {
 	bool IsAlphaNumeric(const std::string& str);
 	std::string& TrimString(std::string& str, const std::string& whitespace = " \r\n\t\v\f");
 	std::string GetCurrentUTCTimeStamp();
+	std::string GenUUID();
 }
