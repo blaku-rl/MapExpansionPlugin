@@ -42,8 +42,8 @@ namespace Utils {
 
 	template<typename Duration, int duration_value>
 	Debounce<Duration, duration_value>::Debounce(BasePlugin* plugin, std::function<void()> complete, const size_t& loops)
+		: plugin(plugin)
 	{
-		plugin = plugin;
 		OnCompletion = complete;
 		numLoops = loops;
 	}
