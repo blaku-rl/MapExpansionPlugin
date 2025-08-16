@@ -24,7 +24,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -125,6 +125,7 @@
     </ClCompile>
     <ClCompile Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.cpp" />
     <ClCompile Include="Components\SRCCommand\SRCCommand.cpp" />
+    <ClCompile Include="MEPSettings.cpp" />
     <ClCompile Include="Utility\Utils.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>

@@ -49,8 +49,7 @@ void AnalyticsCommand::OnMapExit()
 
 void AnalyticsCommand::OnPluginUnload()
 {
-	if (IsSessionActive())
-		EndSession();
+	EndSession();
 
 	//wait until all requests are done
 	while (reqManager.IsProcessingRequests()) {}
@@ -91,12 +90,10 @@ void AnalyticsCommand::TrackEventCommand(const std::vector<std::string>& params)
 	std::span<const std::string> subView(params);
 	auto rebuiltParams = Utils::ConcatVectorByDelim(subView.subspan(1, params.size()));
 
-	std::string playerId, platformStr;
+	nlohmann::json playerObj;
 
 	try {
-		auto pair = GetUserInfo();
-		playerId = pair.first;
-		platformStr = pair.second;
+		playerObj = GetPlayerJson();
 	}
 	catch (std::exception& e) {
 		LOG("{}", e.what());
@@ -113,13 +110,17 @@ void AnalyticsCommand::TrackEventCommand(const std::vector<std::string>& params)
 		return;
 	}
 
-	if (!j.contains("name") or !j.contains("params")) {
-		LOG("The name and params properties must be set in the passed object");
+	if (!j.contains("name")) {
+		LOG("The name property must be set in the passed object");
 		return;
 	}
 
-	j["player_id"] = playerId;
-	j["params"]["player_platform"] = platformStr;
+	if (!j.contains("params")) {
+		j["params"] = nlohmann::json({});
+	}
+
+	j["params"]["player"] = playerObj;
+	j["player_id"] = playerObj["id"];
 	j["timestamp"] = Utils::GetCurrentUTCTimeStamp();
 
 	debounce.StartOrRestartEventDebounce();
@@ -145,12 +146,10 @@ void AnalyticsCommand::StartSession(const std::string& projId, const std::string
 {
 	if (IsSessionActive()) return;
 
-	std::string playerId, platformStr;
+	nlohmann::json playerObj;
 
 	try {
-		auto pair = GetUserInfo();
-		playerId = pair.first;
-		platformStr = pair.second;
+		playerObj = GetPlayerJson();
 	}
 	catch (std::exception& e) {
 		LOG("{}", e.what());
@@ -165,10 +164,10 @@ void AnalyticsCommand::StartSession(const std::string& projId, const std::string
 
 	item.data = {
 		{"id", sessionId},
-		{"params", {
-			{"player_id", playerId},
-			{"player_platform", platformStr}
-		}}
+		{"player_id", playerObj["id"]},
+		{"params", nlohmann::json({
+			{"player", playerObj}
+			})}
 	};
 
 	item.successFunc = [this, item](std::string) {
@@ -214,8 +213,9 @@ void AnalyticsCommand::EndSession()
 	eventsMutex.unlock();
 }
 
-std::pair<std::string, std::string> AnalyticsCommand::GetUserInfo() const
+nlohmann::json AnalyticsCommand::GetPlayerJson() const
 {
+	nlohmann::json playerObj;
 	std::string playerId = "";
 	std::string platformStr = "";
 
@@ -229,20 +229,26 @@ std::pair<std::string, std::string> AnalyticsCommand::GetUserInfo() const
 		throw std::exception("Can't retrieve local players id. Not creating a session");
 	}
 
-	playerId = std::to_string(playerPRI.GetUniqueIdWrapper().GetUID());
+	auto playerNameObj = plugin->gameWrapper->GetPlayerName();
+	if (!playerNameObj) {
+		throw std::exception("Can't retrieve local players name. Not creating a session");
+	}
+
+	playerObj["id"] = std::to_string(playerPRI.GetUniqueIdWrapper().GetUID());
+	playerObj["name"] = playerNameObj.ToString();
 
 	switch (playerPRI.GetUniqueIdWrapper().GetPlatform()) {
 	case OnlinePlatform_Steam:
-		platformStr = "steam";
+		playerObj["platform"] = "steam";
 		break;
 	case OnlinePlatform_Epic:
-		platformStr = "epic";
+		playerObj["platform"] = "epic";
 		break;
 	default:
-		platformStr = "unknown";
+		playerObj["platform"] = "unknown";
 	}
 
-	return std::make_pair(playerId, platformStr);
+	return playerObj;
 }
 
 Utils::RequestItem AnalyticsCommand::GenerateAnalyticsReqItem(const std::string& endpoint) const

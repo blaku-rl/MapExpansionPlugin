@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <chrono>
 #include <format>
+#include <Windows.h>
+#include <shellapi.h>
 
 std::vector<std::string> Utils::SplitStringByChar(const std::string& str, const char& sep)
 {
@@ -67,4 +69,9 @@ std::string Utils::GenUUID()
 	auto& gen = *uuidGenerator.get();
 
 	return uuids::to_string(gen());
+}
+
+void Utils::OpenURL(const std::string& url) 
+{
+	ShellExecute(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOWNOACTIVATE);
 }

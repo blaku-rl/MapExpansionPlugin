@@ -117,6 +117,9 @@
     <ClCompile Include="Utility\WebRequestManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MEPSettings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapExpansionPlugin.h">

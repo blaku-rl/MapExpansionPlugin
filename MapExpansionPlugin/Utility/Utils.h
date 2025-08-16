@@ -11,4 +11,5 @@ namespace Utils {
 	std::string& TrimString(std::string& str, const std::string& whitespace = " \r\n\t\v\f");
 	std::string GetCurrentUTCTimeStamp();
 	std::string GenUUID();
+	void OpenURL(const std::string& url);
 }

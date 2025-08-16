@@ -43,7 +43,7 @@ class MapExpansionPlugin: public BasePlugin, public BakkesMod::Plugin::PluginSet
 	//MEP Settings
 	std::filesystem::path settingsFile = GetExpansionFolder() / "MEPSettings.json";
 	MEPSettings mepSettings;
-	void LoadSettings();
+	bool LoadSettings();
 	void SaveSettings() const;
 
 	// Key press and map binds

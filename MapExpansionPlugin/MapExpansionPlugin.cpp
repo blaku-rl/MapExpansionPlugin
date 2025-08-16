@@ -44,13 +44,8 @@ void MapExpansionPlugin::onLoad()
 		std::bind(&MapExpansionPlugin::OnMessageRecieved, this, _1, _2));
 
 	//Default values
-	if (!std::filesystem::exists(settingsFile)) {
-		mepSettings.analyticsAllowed = true;
-		mepSettings.analyticsMessageShown = false;
-		mepSettings.loggingAllowed = true;
-	}
-	else {
-		LoadSettings();
+	if (!LoadSettings()) {
+		mepSettings.SetDefaultValues();
 	}
 
 	loggingIsAllowed = mepSettings.loggingAllowed;
@@ -60,7 +55,7 @@ void MapExpansionPlugin::onLoad()
 			std::string message = "Map makers can now collect analytics. See MEP Settings for details.";
 			gameWrapper->Toast("MEP Update", message, "default", 10.0f);
 			cvarManager->log(message);
-			}, 5.0f);
+			}, 7.0f);
 	}
 }
 
@@ -223,10 +218,10 @@ MEPSettings MapExpansionPlugin::GetPluginSettings() const
 	return mepSettings;
 }
 
-void MapExpansionPlugin::LoadSettings()
+bool MapExpansionPlugin::LoadSettings()
 {
 	if (!std::filesystem::exists(settingsFile)) {
-		return;
+		return false;
 	}
 
 	auto dataIn = std::ifstream(settingsFile);
@@ -236,6 +231,8 @@ void MapExpansionPlugin::LoadSettings()
 	}
 	dataIn.close();
 	mepSettings = j.get<MEPSettings>();
+
+	return mepSettings.IsCurrentVersion();
 }
 
 void MapExpansionPlugin::SaveSettings() const
@@ -345,15 +342,41 @@ void MapExpansionPlugin::RenderSettings()
 	}
 	else {
 		ImGui::TextUnformatted("The Map Expansion Plugin is designed for map makers to leverage bakkesmod with their maps");
-		ImGui::TextUnformatted("Usage Details can be found here: https://github.com/blaku-rl/MapExpansionPlugin");
+		ImGui::TextUnformatted("Usage Details can be found on the githup repo");
+		ImGui::SameLine();
+		if (ImGui::Button("MEP Repo")) {
+			Utils::OpenURL("https://github.com/blaku-rl/MapExpansionPlugin");
+		}
+		ImGui::TextUnformatted("For details on the analytics and how to use it, see the projects home page");
+		ImGui::SameLine();
+		if (ImGui::Button("Analytics Home Page")) {
+			Utils::OpenURL("https://analytics.rocketleaguemapmaking.com/");
+		}
 		ImGui::Separator();
 		ImGui::TextUnformatted("MEP Settings");
 		if (ImGui::Checkbox("Plugin Logging Allowed", &mepSettings.loggingAllowed)) {
 			SaveSettings();
 			loggingIsAllowed = mepSettings.loggingAllowed;
-			//maybe notify a map of the change?
 		}
 		if (ImGui::Checkbox("Analytics Usage Allowed", &mepSettings.analyticsAllowed)) {
+			std::string status = "Enabled";
+			if (!mepSettings.analyticsAllowed) {
+				status = "Disabled";
+
+				for (auto& [id, command] : customCommands) {
+					if (id == "analytics") {
+						gameWrapper->Execute([this, &command](GameWrapper*) {
+							command->OnMapExit();
+							});
+						break;
+					}
+				}
+			}
+
+			gameWrapper->Execute([this, status](GameWrapper*) {
+				SendInfoToMap("Analytics " + status);
+				});
+			
 			SaveSettings();
 		}
 

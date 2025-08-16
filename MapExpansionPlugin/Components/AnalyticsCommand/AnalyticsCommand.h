@@ -35,7 +35,7 @@ private:
 	bool IsSessionActive() inline const;
 	void StartSession(const std::string& projId, const std::string& apiId);
 	void EndSession();
-	std::pair<std::string, std::string> GetUserInfo() const;
+	nlohmann::json GetPlayerJson() const;
 	Utils::RequestItem GenerateAnalyticsReqItem(const std::string& endpoint) inline const;
 
 	void OnEventDebounceEnd();
