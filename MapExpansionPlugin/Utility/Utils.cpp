@@ -20,6 +20,20 @@ std::vector<std::string> Utils::SplitStringByChar(const std::string& str, const 
 	return splitString;
 }
 
+std::vector<std::string_view> Utils::SplitStrViewByChar(std::string_view view, const char& sep)
+{
+	std::vector<std::string_view> strs = {};
+	size_t start = 0, splitPos = 0;
+
+	do {
+		if (splitPos != 0) start = splitPos + 1;
+		splitPos = view.find_first_of(sep, start);
+		strs.push_back(view.substr(start, splitPos));
+	} while (splitPos != std::string_view::npos);
+
+	return strs;
+}
+
 std::string Utils::ConcatVectorByDelim(const std::span<const std::string>& vec, const char& sep)
 {
 	return std::ranges::fold_left(vec, "", [sep](std::string acc, std::string part) {return acc + sep + part; });

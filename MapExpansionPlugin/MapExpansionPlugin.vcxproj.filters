@@ -117,7 +117,10 @@
     <ClCompile Include="Utility\WebRequestManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MEPSettings.cpp">
+    <ClCompile Include="Core\MEPSettings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Command.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -242,7 +245,10 @@
     <ClInclude Include="Utility\WebRequestManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MEPSettings.h">
+    <ClInclude Include="Core\Command.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\MEPSettings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

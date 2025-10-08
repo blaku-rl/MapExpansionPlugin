@@ -4,7 +4,8 @@
 #include <span>
 
 namespace Utils {
-	std::vector<std::string> SplitStringByChar(const std::string& str, const char& sep);
+	std::vector<std::string> SplitStringByChar(const std::string& str, const char& sep = ' ');
+	std::vector<std::string_view> SplitStrViewByChar(std::string_view view, const char& sep = ' ');
 	std::string ConcatVectorByDelim(const std::span<const std::string>& vec, const char& sep = ' ');
 	bool IsNumeric(const std::string& str);
 	bool IsAlphaNumeric(const std::string& str);

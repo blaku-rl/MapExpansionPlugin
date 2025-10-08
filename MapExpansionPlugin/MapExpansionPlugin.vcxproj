@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Release|x64">
@@ -125,7 +125,8 @@
     </ClCompile>
     <ClCompile Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.cpp" />
     <ClCompile Include="Components\SRCCommand\SRCCommand.cpp" />
-    <ClCompile Include="MEPSettings.cpp" />
+    <ClCompile Include="Core\Command.cpp" />
+    <ClCompile Include="Core\MEPSettings.cpp" />
     <ClCompile Include="Utility\Utils.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -155,6 +156,7 @@
     <ClCompile Include="Utility\WebRequestManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\Command.h" />
     <ClInclude Include="Components\AllCommandsInclude.h" />
     <ClInclude Include="Components\AnalyticsCommand\AnalyticsCommand.h" />
     <ClInclude Include="Components\BaseCommand.h" />
@@ -170,7 +172,7 @@
     <ClInclude Include="Components\SaveDataPrefixCommand\SaveDataPrefixCommand.h" />
     <ClInclude Include="Components\SRCCommand\SRCCommand.h" />
     <ClInclude Include="Includes\uuid.h" />
-    <ClInclude Include="MEPSettings.h" />
+    <ClInclude Include="Core\MEPSettings.h" />
     <ClInclude Include="Utility\Constants.h" />
     <ClInclude Include="Utility\Debounce.h" />
     <ClInclude Include="Utility\KismetIncludes.h" />

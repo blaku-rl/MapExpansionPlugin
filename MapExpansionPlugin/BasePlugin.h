@@ -7,7 +7,7 @@
 #include <memory>
 #include <filesystem>
 #include <bakkesmod/wrappers/kismet/SequenceVariableWrapper.h>
-#include "MEPSettings.h"
+#include "Core/MEPSettings.h"
 
 class BasePlugin : public BakkesMod::Plugin::BakkesModPlugin
 {
