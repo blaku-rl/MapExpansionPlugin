@@ -37,28 +37,28 @@ void SaveDataCommand::CommandFunction(const std::vector<std::string>& params)
 				continue;
 			}
 			dataFile << "{\n";
-			dataFile << "    " << CONSTANTS::nameTag << curVar << "\n";
+			dataFile << "    " << Constants::SaveData::nameTag << curVar << "\n";
 			auto& mapVar = mapVars.find(curVar)->second;
 			if (mapVar.IsBool()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Bool\n";
-				dataFile << "    " << CONSTANTS::valueTag << (mapVar.GetBool() ? "1" : "0") << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Bool\n";
+				dataFile << "    " << Constants::SaveData::valueTag << (mapVar.GetBool() ? "1" : "0") << "\n";
 			}
 			else if (mapVar.IsFloat()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Float\n";
-				dataFile << "    " << CONSTANTS::valueTag << mapVar.GetFloat() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Float\n";
+				dataFile << "    " << Constants::SaveData::valueTag << mapVar.GetFloat() << "\n";
 			}
 			else if (mapVar.IsInt()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Int\n";
-				dataFile << "    " << CONSTANTS::valueTag << mapVar.GetInt() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Int\n";
+				dataFile << "    " << Constants::SaveData::valueTag << mapVar.GetInt() << "\n";
 			}
 			else if (mapVar.IsString()) {
-				dataFile << "    " << CONSTANTS::typeTag << "String\n";
-				dataFile << "    " << CONSTANTS::valueTag << mapVar.GetString() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "String\n";
+				dataFile << "    " << Constants::SaveData::valueTag << mapVar.GetString() << "\n";
 			}
 			else if (mapVar.IsVector()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Vector\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Vector\n";
 				Vector vec = mapVar.GetVector();
-				dataFile << "    " << CONSTANTS::valueTag << vec.X << "," << vec.Y << "," << vec.Z << "\n";
+				dataFile << "    " << Constants::SaveData::valueTag << vec.X << "," << vec.Y << "," << vec.Z << "\n";
 			}
 			dataFile << "}\n";
 		}

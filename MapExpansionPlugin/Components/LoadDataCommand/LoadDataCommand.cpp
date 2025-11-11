@@ -43,18 +43,18 @@ void LoadDataCommand::CommandFunction(const std::vector<std::string>& params)
 			std::string varValue = "";
 
 			std::getline(dataFile, line);
-			if (line.find(CONSTANTS::nameTag) != std::string::npos) {
-				varName = line.substr(line.find(CONSTANTS::nameTag) + CONSTANTS::nameTag.size(), std::string::npos);
+			if (line.find(Constants::SaveData::nameTag) != std::string::npos) {
+				varName = line.substr(line.find(Constants::SaveData::nameTag) + Constants::SaveData::nameTag.size(), std::string::npos);
 			}
 
 			std::getline(dataFile, line);
-			if (line.find(CONSTANTS::typeTag) != std::string::npos) {
-				varType = line.substr(line.find(CONSTANTS::typeTag) + CONSTANTS::typeTag.size(), std::string::npos);
+			if (line.find(Constants::SaveData::typeTag) != std::string::npos) {
+				varType = line.substr(line.find(Constants::SaveData::typeTag) + Constants::SaveData::typeTag.size(), std::string::npos);
 			}
 
 			std::getline(dataFile, line);
-			if (line.find(CONSTANTS::valueTag) != std::string::npos) {
-				varValue = line.substr(line.find(CONSTANTS::valueTag) + CONSTANTS::valueTag.size(), std::string::npos);
+			if (line.find(Constants::SaveData::valueTag) != std::string::npos) {
+				varValue = line.substr(line.find(Constants::SaveData::valueTag) + Constants::SaveData::valueTag.size(), std::string::npos);
 			}
 
 			auto varMap = mapVars.find(varName);

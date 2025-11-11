@@ -18,6 +18,7 @@ class MapExpansionPlugin: public BasePlugin, public BakkesMod::Plugin::PluginSet
 	bool isInMap = false;
 	bool inputBlocked = false;
 	std::vector<std::pair<std::string, std::unique_ptr<BaseCommand>>> customCommands;
+	std::unordered_map<std::string, std::unique_ptr<BaseCommand>> customCommands2;
 	std::map<std::string, SequenceVariableWrapper> mapVariables;
 
 	//Setup Functions

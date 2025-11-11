@@ -43,27 +43,27 @@ void SaveDataPrefixCommand::CommandFunction(const std::vector<std::string>& para
 				continue;
 			}
 			dataFile << "{\n";
-			dataFile << "    " << CONSTANTS::nameTag << varName << "\n";
+			dataFile << "    " << Constants::SaveData::nameTag << varName << "\n";
 			if (varObj.IsBool()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Bool\n";
-				dataFile << "    " << CONSTANTS::valueTag << (varObj.GetBool() ? "1" : "0") << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Bool\n";
+				dataFile << "    " << Constants::SaveData::valueTag << (varObj.GetBool() ? "1" : "0") << "\n";
 			}
 			else if (varObj.IsFloat()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Float\n";
-				dataFile << "    " << CONSTANTS::valueTag << varObj.GetFloat() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Float\n";
+				dataFile << "    " << Constants::SaveData::valueTag << varObj.GetFloat() << "\n";
 			}
 			else if (varObj.IsInt()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Int\n";
-				dataFile << "    " << CONSTANTS::valueTag << varObj.GetInt() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Int\n";
+				dataFile << "    " << Constants::SaveData::valueTag << varObj.GetInt() << "\n";
 			}
 			else if (varObj.IsString()) {
-				dataFile << "    " << CONSTANTS::typeTag << "String\n";
-				dataFile << "    " << CONSTANTS::valueTag << varObj.GetString() << "\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "String\n";
+				dataFile << "    " << Constants::SaveData::valueTag << varObj.GetString() << "\n";
 			}
 			else if (varObj.IsVector()) {
-				dataFile << "    " << CONSTANTS::typeTag << "Vector\n";
+				dataFile << "    " << Constants::SaveData::typeTag << "Vector\n";
 				Vector vec = varObj.GetVector();
-				dataFile << "    " << CONSTANTS::valueTag << vec.X << "," << vec.Y << "," << vec.Z << "\n";
+				dataFile << "    " << Constants::SaveData::valueTag << vec.X << "," << vec.Y << "," << vec.Z << "\n";
 			}
 			dataFile << "}\n";
 		}

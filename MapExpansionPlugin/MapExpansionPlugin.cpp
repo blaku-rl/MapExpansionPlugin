@@ -8,6 +8,7 @@
 #include <bakkesmod/wrappers/kismet/SequenceOpWrapper.h>
 #include <bakkesmod/wrappers/kismet/SequenceObjectWrapper.h>
 #include <fstream>
+#include "Utility/Constants.h"
 
 BAKKESMOD_PLUGIN(MapExpansionPlugin, "Map Expansion Plugin", plugin_version, PLUGINTYPE_THREADEDUNLOAD)
 
@@ -31,9 +32,10 @@ void MapExpansionPlugin::onLoad()
 	customCommands.emplace_back("speedrun", std::make_unique<SRCCommand>(this));
 	customCommands.emplace_back("analytics", std::make_unique<AnalyticsCommand>(this));
 	customCommands.emplace_back("gametime", std::make_unique<GameTimeCommand>(this));
+	customCommands2 = CustomCommands::GetCustomCommands(this);
 
 	setupThread = std::thread(&MapExpansionPlugin::SetUpKeysMap, this);
-	gameWrapper->HookEventPost("Function Engine.GameViewportClient.Tick", std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
+	gameWrapper->HookEventPost(Constants::Functions::Tick, std::bind(&MapExpansionPlugin::CheckForSetupThreadComplete, this, _1));
 
 	if (!std::filesystem::exists(GetExpansionFolder()))
 		std::filesystem::create_directory(GetExpansionFolder());
@@ -84,7 +86,7 @@ void MapExpansionPlugin::CheckForSetupThreadComplete(std::string eventName)
 {
 	if (isSetupComplete && setupThread.joinable()) {
 		setupThread.join();
-		gameWrapper->UnhookEventPost("Function Engine.GameViewportClient.Tick");
+		gameWrapper->UnhookEventPost(Constants::Functions::Tick);
 
 		//Check for var incase plugin is loaded while in a map
 		gameWrapper->Execute([this](GameWrapper*) {
@@ -181,14 +183,14 @@ void MapExpansionPlugin::SendInfoToMap(const std::string& str)
 	if (!isInMap) return;
 
 	if (str.size() > 2000)
-		LOG("mepoutput is {} characters, showing first 100 here {}", std::to_string(str.size()), str.substr(0, 100));
+		LOG("{} is {} characters, showing first 100 here {}", Constants::MEP::MEPOutputVarName, std::to_string(str.size()), str.substr(0, 100));
 	else
-		LOG("Setting mepoutput to {}", str);
+		LOG("Setting {} to {}", Constants::MEP::MEPOutputVarName, str);
 
-	auto outVar = mapVariables.find("mepoutput");
+	auto outVar = mapVariables.find(Constants::MEP::MEPOutputVarName);
 	if (outVar != mapVariables.end() and outVar->second.IsString())
 		outVar->second.SetString(str);
-	ActivateRemoteEvent("MEPOutputEvent");
+	ActivateRemoteEvent(Constants::MEP::MEPOutputEvent);
 }
 
 std::filesystem::path MapExpansionPlugin::GetExpansionFolder() const
@@ -286,10 +288,10 @@ bool MapExpansionPlugin::CheckForAllKeysPressed(const std::vector<int>& keys)
 void MapExpansionPlugin::SetDefaultHooks()
 {
 	using namespace std::placeholders;
-	gameWrapper->HookEventWithCaller<CarWrapper>("Function TAGame.Car_TA.SetVehicleInput", std::bind(&MapExpansionPlugin::OnPhysicsTick, this, _1, _2, _3));
-	gameWrapper->HookEventWithCaller<ActorWrapper>("Function TAGame.GameViewportClient_TA.HandleKeyPress", std::bind(&MapExpansionPlugin::OnKeyPressed, this, _1, _2, _3));
-	gameWrapper->HookEventPost("Function Engine.HUD.SetShowScores", std::bind(&MapExpansionPlugin::MapPluginVarCheck, this, _1));
-	gameWrapper->HookEventPost("Function TAGame.GameEvent_Soccar_TA.Destroyed", std::bind(&MapExpansionPlugin::MapUnload, this, _1));
+	gameWrapper->HookEventWithCaller<CarWrapper>(Constants::Functions::Physics_Tick, std::bind(&MapExpansionPlugin::OnPhysicsTick, this, _1, _2, _3));
+	gameWrapper->HookEventWithCaller<ActorWrapper>(Constants::Functions::Keypress, std::bind(&MapExpansionPlugin::OnKeyPressed, this, _1, _2, _3));
+	gameWrapper->HookEventPost(Constants::Functions::Maploaded, std::bind(&MapExpansionPlugin::MapPluginVarCheck, this, _1));
+	gameWrapper->HookEventPost(Constants::Functions::Mapunloaded, std::bind(&MapExpansionPlugin::MapUnload, this, _1));
 }
 
 void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
@@ -299,7 +301,7 @@ void MapExpansionPlugin::MapPluginVarCheck(std::string eventName)
 	auto sequence = gameWrapper->GetMainSequence();
 	if (sequence.memory_address == NULL) return;
 	mapVariables = sequence.GetAllSequenceVariables(false);
-	ActivateRemoteEvent("MEPLoaded");
+	ActivateRemoteEvent(Constants::MEP::MEPLoadedEvent);
 	LOG("Map Expansion Plugin Loaded");
 	isInMap = true;
 }

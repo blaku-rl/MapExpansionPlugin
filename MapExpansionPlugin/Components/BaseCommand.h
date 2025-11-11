@@ -14,4 +14,5 @@ public:
 	virtual void OnMapExit() {};
 	virtual void OnPluginUnload() {};
 	virtual std::string GetNetcodeIdentifier() = 0;
+	static std::string ComponentIdentifier;
 };
